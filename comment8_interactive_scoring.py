@@ -1,26 +1,3 @@
-"""
-Interactive six-dimensional scoring utility for RAMAD Comment 8 benchmarking.
-
-This public-facing script demonstrates the manual/interactive scoring workflow
-without releasing raw prompts, private model responses, API credentials, or the
-complete internal evaluation archive.
-
-Usage:
-    python comment8_interactive_scoring.py
-    python comment8_interactive_scoring.py --scores scores_demo.jsonl --summary summary_demo.csv
-
-Each score record contains:
-    evaluator_label, candidate_label, question_id, SR, CSC, DQ, CS, QR, IS
-
-Score dimensions:
-    SR  - scenario relevance
-    CSC - citation support and scientific caution
-    DQ  - design quality
-    CS  - clarity and structure
-    QR  - question responsiveness
-    IS  - insightfulness
-"""
-
 from __future__ import annotations
 
 import argparse
