@@ -61,6 +61,7 @@ The checkpoint corresponds to a 1,600-channel mixed-drug model with category lab
 ## Expected files and troubleshooting
 
 - `01_benchmark/outputs/model_answers.jsonl`: full generated responses and exact prompts.
+- `01_benchmark/outputs/model_answers_failures.jsonl`: empty or truncated calls, if any; increase the common token cap and restart the full matrix under a new run label before scoring.
 - `01_benchmark/outputs/blind_responses.csv` and `expert_scores_template.csv`: scoring handoff.
 - `01_benchmark/outputs/summary/`: expert summary and paired comparisons after scoring.
 - `results/cganet_mixed_1600/`: external predictions and metrics.
