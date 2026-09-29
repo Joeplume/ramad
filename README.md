@@ -24,7 +24,12 @@ python -m pip install -r requirements-spectral.txt
 pwsh -File run_public_package.ps1
 ```
 
-In the separate GPU environment, install the appropriate CUDA PyTorch wheel and then run `python -m pip install -r requirements-llm.txt`.
+For the checked Windows RTX 5060 environment, install the CUDA 12.8 build of PyTorch 2.9.1 in the separate GPU environment, then install the pinned LLM packages:
+
+```powershell
+python -m pip install torch==2.9.1 --index-url https://download.pytorch.org/whl/cu128
+python -m pip install -r requirements-llm.txt
+```
 
 The published model ID and exact Qwen base revision are recorded in `02_code_entrypoints/ramad_model/training_config.json`. The training input is the full 1,000-record corpus; the saved train and validation IDs are in `02_code_entrypoints/ramad_model/splits/`.
 
