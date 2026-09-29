@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+data/
+results/
+01_benchmark/outputs/
+01_benchmark/benchmark_config.json
+01_benchmark/retrieval_contexts.jsonl
+02_code_entrypoints/ramad_model/outputs/
+*.env

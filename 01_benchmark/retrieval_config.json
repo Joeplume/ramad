@@ -1,0 +1,11 @@
+{
+  "source": "author-supplied Web of Science corpus described in SI Text S1",
+  "declared_publications": 7657,
+  "chunk_size_tokens": 500,
+  "chunk_overlap_tokens": 100,
+  "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "index": "FAISS",
+  "top_k": 5,
+  "tie_break": "source_id ascending",
+  "frozen_context_file": "retrieval_contexts.jsonl"
+}

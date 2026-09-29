@@ -69,6 +69,7 @@ def main() -> None:
     config = load_config(config_path)
     config_dir = config_path.parent
     model_name_or_path = args.model_name_or_path or config["model_name_or_path"]
+    model_revision = config.get("model_revision") if not args.model_name_or_path else None
     adapter_path = resolve_path(args.adapter_path or config["output_dir"], config_dir)
     if not adapter_path.is_dir():
         raise FileNotFoundError(f"LoRA adapter directory not found: {adapter_path}")
@@ -85,7 +86,7 @@ def main() -> None:
     tokenizer = AutoTokenizer.from_pretrained(adapter_path, use_fast=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
-    model = AutoModelForCausalLM.from_pretrained(model_name_or_path, **model_kwargs)
+    model = AutoModelForCausalLM.from_pretrained(model_name_or_path, revision=model_revision, **model_kwargs)
     model = PeftModel.from_pretrained(model, adapter_path)
     model.to(device)
     model.eval()

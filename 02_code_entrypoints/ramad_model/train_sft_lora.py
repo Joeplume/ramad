@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import inspect
 import json
 from pathlib import Path
@@ -38,6 +39,13 @@ def load_config(config_path: Path) -> dict[str, Any]:
 def resolve_path(value: str, config_dir: Path) -> Path:
     path = Path(value).expanduser()
     return path if path.is_absolute() else (config_dir / path).resolve()
+
+
+def load_ids(path: Path) -> list[str]:
+    ids = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    if len(ids) != len(set(ids)):
+        raise ValueError(f"Duplicate record IDs in {path}")
+    return ids
 
 
 def require_fields(record: dict[str, Any], required_fields: list[str]) -> None:
@@ -81,6 +89,7 @@ def main() -> None:
     data_path = resolve_path(args.data_path or config["data_path"], config_dir)
     output_dir = resolve_path(args.output_dir or config["output_dir"], config_dir)
     model_name_or_path = args.model_name_or_path or config["model_name_or_path"]
+    model_revision = config.get("model_revision") if not args.model_name_or_path else None
     if not data_path.is_file():
         raise FileNotFoundError(f"Instruction JSONL not found: {data_path}")
 
@@ -107,16 +116,18 @@ def main() -> None:
     for record in raw_records:
         require_fields(record, required_fields)
 
-    holdout_size = max(1, round(len(raw_records) * (1 - float(config["train_fraction"]))))
-    partitions = raw_records.train_test_split(
-        test_size=holdout_size,
-        seed=int(config["seed"]),
-        shuffle=True,
-    )
-    train_records = partitions["train"]
-    holdout_records = partitions["test"]
+    train_ids = load_ids(resolve_path(config["train_ids_path"], config_dir))
+    validation_ids = load_ids(resolve_path(config["validation_ids_path"], config_dir))
+    dataset_ids = [str(record["id"]) for record in raw_records]
+    if len(dataset_ids) != len(set(dataset_ids)):
+        raise ValueError("Training corpus contains duplicate record IDs")
+    if set(train_ids) & set(validation_ids) or set(train_ids) | set(validation_ids) != set(dataset_ids):
+        raise ValueError("Saved train/validation split does not partition the training corpus")
+    position = {record_id: index for index, record_id in enumerate(dataset_ids)}
+    train_records = raw_records.select([position[record_id] for record_id in train_ids])
+    holdout_records = raw_records.select([position[record_id] for record_id in validation_ids])
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, use_fast=True)
+    tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, revision=model_revision, use_fast=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
@@ -124,7 +135,7 @@ def main() -> None:
     model_kwargs: dict[str, Any] = {}
     if use_fp16:
         model_kwargs["torch_dtype"] = torch.float16
-    model = AutoModelForCausalLM.from_pretrained(model_name_or_path, **model_kwargs)
+    model = AutoModelForCausalLM.from_pretrained(model_name_or_path, revision=model_revision, **model_kwargs)
     model.config.use_cache = False
 
     lora_config = LoraConfig(
@@ -171,6 +182,16 @@ def main() -> None:
     )
 
     output_dir.mkdir(parents=True, exist_ok=True)
+    manifest = {
+        "base_model": model_name_or_path,
+        "base_model_revision": model_revision,
+        "dataset_sha256": hashlib.sha256(data_path.read_bytes()).hexdigest(),
+        "train_ids": train_ids,
+        "validation_ids": validation_ids,
+        "seed": int(config["seed"]),
+        "config": config,
+    }
+    (output_dir / "run_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     training_kwargs: dict[str, Any] = {
         "output_dir": str(output_dir),
         "num_train_epochs": float(config["num_train_epochs"]),

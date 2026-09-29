@@ -8,7 +8,12 @@ python (Join-Path $root "02_code_entrypoints\ramad_model\train_sft_lora.py") --h
 python (Join-Path $root "02_code_entrypoints\ramad_model\run_inference.py") --help
 python (Join-Path $root "02_code_entrypoints\ramad_rag\build_index.py") --help
 python (Join-Path $root "02_code_entrypoints\ramad_rag\rag_qa.py") --help
-python (Join-Path $root "benchmark\run_benchmark.py") --help
-python (Join-Path $root "benchmark\aggregate_scores.py") --help
+python (Join-Path $root "01_benchmark\run_benchmark.py") --help
+python (Join-Path $root "01_benchmark\aggregate_scores.py") --help
+python (Join-Path $root "01_benchmark\freeze_retrieval.py") --help
+python (Join-Path $root "01_benchmark\human_primary.py") --help
+python (Join-Path $root "02_code_entrypoints\spectral\prepare_mixed_1600.py") --help
+python (Join-Path $root "02_code_entrypoints\spectral\run_checkpoint.py") --help
+python (Join-Path $root "02_code_entrypoints\spectral\train_mixed_1600.py") --help
 
 Write-Output "Public package checks completed."

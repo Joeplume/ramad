@@ -5,16 +5,10 @@ from pathlib import Path
 from typing import Any
 
 
-DEFAULT_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-PROMPT_TEMPLATE = """You are a careful Raman-spectroscopy assistant.
-Use only the retrieved context to answer the question. If the context does not
-support an answer, say that the available context is insufficient.
-
-Context:
-{context}
-
-Question: {question}
-Answer:"""
+DEFAULT_EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+PROMPT_DIR = Path(__file__).resolve().parents[2] / "prompts"
+SYSTEM_PROMPT = (PROMPT_DIR / "domain_system.txt").read_text(encoding="utf-8").strip()
+RAG_USER_TEMPLATE = (PROMPT_DIR / "rag_user.txt").read_text(encoding="utf-8").strip()
 
 
 def parse_args() -> argparse.Namespace:
@@ -114,8 +108,16 @@ def answer_query(
         raise ValueError("max_new_tokens must be positive.")
 
     documents = vectorstore.similarity_search(question, k=top_k)
-    context = "\n\n".join(document.page_content for document in documents)
-    prompt = PROMPT_TEMPLATE.format(context=context, question=question)
+    context = "\n\n".join(
+        f"[{index}] source_id={document.metadata.get('source_file', document.metadata.get('source', 'unknown'))} page={document.metadata.get('page', '')}\n{document.page_content}"
+        for index, document in enumerate(documents, start=1)
+    )
+    user_prompt = RAG_USER_TEMPLATE.format(context=context, question=question)
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_prompt},
+    ]
+    prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True) if getattr(tokenizer, "chat_template", None) else f"system:\n{SYSTEM_PROMPT}\n\nuser:\n{user_prompt}\n\nassistant:\n"
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
 
     generation_kwargs: dict[str, Any] = {

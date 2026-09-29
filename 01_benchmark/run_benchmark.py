@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import http.client
 import json
 import os
@@ -13,11 +14,11 @@ from pathlib import Path
 
 
 DIMENSIONS = ["SR", "CSC", "DQ", "CS", "QR", "IS"]
+LOCAL_MODELS = {}
 
-GENERATION_SYSTEM_PROMPT = """You are an expert in Raman/SERS analytical chemistry, aquaculture-drug residue detection, chemometrics, and field-deployable sensing systems.
-
-Answer the question as a technically rigorous research assistant. Focus on realistic experimental choices, sample preparation, Raman/SERS acquisition, spectral analysis, limitations, and field constraints. Avoid unsupported performance claims and invented citations. Use concise, structured prose that a researcher can evaluate.
-"""
+PROMPT_DIR = Path(__file__).resolve().parents[1] / "prompts"
+GENERATION_SYSTEM_PROMPT = (PROMPT_DIR / "domain_system.txt").read_text(encoding="utf-8").strip()
+RAG_USER_TEMPLATE = (PROMPT_DIR / "rag_user.txt").read_text(encoding="utf-8").strip()
 
 SCORING_SYSTEM_PROMPT = """You are an impartial reviewer of LLM-generated Raman/SERS workflow recommendations.
 
@@ -64,6 +65,50 @@ def load_jsonl(path: Path):
             except json.JSONDecodeError as exc:
                 raise ValueError(f"Invalid JSONL at {path}:{line_number}: {exc}") from exc
     return rows
+
+
+def digest(value):
+    return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def load_contexts(path: Path):
+    if not path.is_file():
+        raise FileNotFoundError(f"Frozen retrieval contexts are required: {path}")
+    contexts = {}
+    for row in load_jsonl(path):
+        question_id = row["question_id"]
+        if question_id in contexts:
+            raise ValueError(f"Duplicate retrieval context for {question_id}")
+        passages = row.get("passages") or []
+        if not passages:
+            raise ValueError(f"No retrieved passages for {question_id}")
+        for passage in passages:
+            if not all(str(passage.get(key, "")).strip() for key in ("source_id", "text")):
+                raise ValueError(f"A passage for {question_id} lacks source_id or text")
+        contexts[question_id] = passages
+    return contexts
+
+
+def build_messages(question, passages, condition):
+    if condition == "bare":
+        return [{"role": "user", "content": question}]
+    if condition == "prompt":
+        return [
+            {"role": "system", "content": GENERATION_SYSTEM_PROMPT},
+            {"role": "user", "content": question},
+        ]
+    if condition != "prompt_rag":
+        raise ValueError(f"Unknown condition: {condition}")
+    if not passages:
+        raise ValueError("prompt_rag requires frozen retrieved passages")
+    context = "\n\n".join(
+        f"[{index}] source_id={item['source_id']} doi={item.get('doi', '')} page={item.get('page', '')}\n{item['text']}"
+        for index, item in enumerate(passages, start=1)
+    )
+    return [
+        {"role": "system", "content": GENERATION_SYSTEM_PROMPT},
+        {"role": "user", "content": RAG_USER_TEMPLATE.format(context=context, question=question)},
+    ]
 
 
 def append_jsonl(path: Path, row: dict):
@@ -193,6 +238,8 @@ def saved_parameters(parameters: dict):
 
 
 def completion(config: dict, model_config: dict, messages: list, parameter_group: str):
+    if model_config.get("backend") == "local":
+        return local_completion(config, model_config, messages, parameter_group)
     profile = api_profile(config, model_config)
     parameters = dict(config.get(parameter_group, {}))
     parameters.update(model_config.get("request_overrides", {}))
@@ -204,6 +251,70 @@ def completion(config: dict, model_config: dict, messages: list, parameter_group
     payload = {"model": model_config["model"], "messages": messages, **parameters}
     response = api_request(profile, "POST", profile.get("chat_completions_path", "/v1/chat/completions"), payload)
     return response, profile["name"], parameters
+
+
+def local_completion(config: dict, model_config: dict, messages: list, parameter_group: str):
+    import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    model_name = model_config["model"]
+    revision = model_config.get("revision", config.get("base_model_revision"))
+    adapter_path = model_config.get("adapter_path")
+    use_4bit = bool(model_config.get("use_4bit", False))
+    key = (model_name, revision, adapter_path, use_4bit)
+    if key not in LOCAL_MODELS:
+        kwargs = {"device_map": "auto", "torch_dtype": torch.float16 if torch.cuda.is_available() else torch.float32}
+        if use_4bit:
+            if not torch.cuda.is_available():
+                raise RuntimeError("4-bit local inference requires CUDA")
+            from transformers import BitsAndBytesConfig
+
+            kwargs["quantization_config"] = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_compute_dtype=torch.float16,
+            )
+            kwargs.pop("torch_dtype")
+        tokenizer = AutoTokenizer.from_pretrained(model_name, revision=revision, use_fast=True)
+        model = AutoModelForCausalLM.from_pretrained(model_name, revision=revision, **kwargs)
+        if adapter_path:
+            if not Path(adapter_path).is_dir():
+                raise FileNotFoundError(f"LoRA adapter directory not found: {adapter_path}")
+            from peft import PeftModel
+
+            model = PeftModel.from_pretrained(model, adapter_path)
+        model.eval()
+        LOCAL_MODELS[key] = (tokenizer, model)
+    tokenizer, model = LOCAL_MODELS[key]
+    if getattr(tokenizer, "chat_template", None):
+        prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    else:
+        prompt = "\n\n".join(f"{item['role']}:\n{item['content']}" for item in messages) + "\n\nassistant:\n"
+    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    parameters = dict(config.get(parameter_group, {}))
+    parameters.update(model_config.get("request_overrides", {}))
+    temperature = float(parameters.get("temperature", 0))
+    generation = {
+        "max_new_tokens": int(parameters.get("max_tokens", 1024)),
+        "do_sample": temperature > 0,
+        "pad_token_id": tokenizer.eos_token_id,
+    }
+    if temperature > 0:
+        generation["temperature"] = temperature
+        generation["top_p"] = float(parameters.get("top_p", 1))
+    with torch.inference_mode():
+        tokens = model.generate(**inputs, **generation)
+    answer_ids = tokens[0, inputs["input_ids"].shape[1] :]
+    answer = tokenizer.decode(answer_ids, skip_special_tokens=True).strip()
+    response = {
+        "model": model_name,
+        "choices": [{"message": {"content": answer}, "finish_reason": "stop"}],
+        "usage": {
+            "prompt_tokens": inputs["input_ids"].shape[1],
+            "completion_tokens": answer_ids.shape[0],
+            "total_tokens": tokens.shape[1],
+        },
+    }
+    return response, "local", parameters
 
 
 def existing_keys(path: Path, fields: list):
@@ -247,15 +358,16 @@ def list_models(config: dict, profile_name: str):
     print(json.dumps({"data": compact}, ensure_ascii=False, indent=2))
 
 
-def dry_run(config: dict, questions: list, candidate_labels, evaluator_labels):
+def dry_run(config: dict, questions: list, contexts: dict, candidate_labels, evaluator_labels):
     candidates = enabled_models(config, "candidate_models", candidate_labels)
     evaluators = enabled_models(config, "evaluator_models", evaluator_labels)
     plan = {
         "run_label": config.get("run_label", ""),
         "question_count": len(questions),
         "question_ids": [row.get("id") for row in questions],
+        "retrieval_contexts": {key: {"passages": len(value), "sha256": digest(value)} for key, value in contexts.items()},
         "enabled_candidates": [
-            {"label": item["label"], "model": item["model"], "api_profile": item.get("api_profile", "default")}
+            {"label": item["label"], "model": item["model"], "condition": item.get("condition", "prompt_rag"), "backend": item.get("backend", "api"), "api_profile": item.get("api_profile", "default")}
             for item in candidates
         ],
         "enabled_evaluators": [
@@ -268,22 +380,21 @@ def dry_run(config: dict, questions: list, candidate_labels, evaluator_labels):
     print(json.dumps(plan, ensure_ascii=False, indent=2))
 
 
-def generate(config: dict, questions: list, output_path: Path, sleep_s: float, labels):
+def generate(config: dict, questions: list, contexts: dict, output_path: Path, sleep_s: float, labels):
     candidates = enabled_models(config, "candidate_models", labels)
     if not candidates:
         raise RuntimeError("No candidate model is enabled")
     done = existing_keys(output_path, ["run_label", "candidate_label", "question_id"])
     run_label = config.get("run_label", "")
     for model_config in candidates:
+        condition = model_config.get("condition", "prompt_rag")
         for question in questions:
             key = (run_label, model_config["label"], question["id"])
             if key in done:
                 print(f"skip existing: {model_config['label']} / {question['id']}")
                 continue
-            messages = [
-                {"role": "system", "content": GENERATION_SYSTEM_PROMPT},
-                {"role": "user", "content": question["question"]},
-            ]
+            passages = contexts.get(question["id"], []) if condition == "prompt_rag" else []
+            messages = build_messages(question["question"], passages, condition)
             print(f"generate: {model_config['label']} / {question['id']}")
             started = time.monotonic()
             response, profile_name, parameters = completion(config, model_config, messages, "generation")
@@ -295,18 +406,32 @@ def generate(config: dict, questions: list, output_path: Path, sleep_s: float, l
                 "run_label": run_label,
                 "candidate_label": model_config["label"],
                 "candidate_model": model_config["model"],
+                "condition": condition,
                 "api_profile": profile_name,
                 "question_id": question["id"],
                 "topic": question.get("topic", ""),
                 "question": question["question"],
+                "retrieved_passages": passages,
+                "retrieval_sha256": digest(passages),
+                "messages": messages,
+                "prompt_sha256": digest(messages),
                 "answer": answer,
                 "request_parameters": saved_parameters(parameters),
                 "finish_reason": finish_reason(response),
+                "returned_model": response.get("model", ""),
                 "usage": usage_counts(response),
                 "latency_s": round(time.monotonic() - started, 3),
             }
             append_jsonl(output_path, row)
             time.sleep(sleep_s)
+        if model_config.get("backend") == "local":
+            import gc
+            import torch
+
+            LOCAL_MODELS.clear()
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
 
 def score(config: dict, answer_path: Path, score_path: Path, sleep_s: float, labels):
@@ -322,11 +447,9 @@ def score(config: dict, answer_path: Path, score_path: Path, sleep_s: float, lab
             if key in done:
                 print(f"skip existing: {evaluator['label']} -> {answer_row['candidate_label']} / {answer_row['question_id']}")
                 continue
-            user_prompt = (
-                f"Question:\n{answer_row['question']}\n\n"
-                f"Candidate model label:\n{answer_row['candidate_label']}\n\n"
-                f"Candidate answer:\n{answer_row['answer']}"
-            )
+            passages = answer_row.get("retrieved_passages") or []
+            evidence = "\n\n".join(f"[{i}] {item['source_id']}: {item['text']}" for i, item in enumerate(passages, 1))
+            user_prompt = f"Question:\n{answer_row['question']}\n\nRetrieved evidence:\n{evidence}\n\nCandidate answer:\n{answer_row['answer']}"
             messages = [
                 {"role": "system", "content": SCORING_SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
@@ -352,11 +475,14 @@ def score(config: dict, answer_path: Path, score_path: Path, sleep_s: float, lab
                 "candidate_label": answer_row["candidate_label"],
                 "candidate_model": answer_row.get("candidate_model", ""),
                 "question_id": answer_row["question_id"],
+                "blind_response_id": digest([run_label, answer_row["candidate_label"], answer_row["question_id"]])[:16],
+                "messages": messages,
                 "scores": scores,
                 "rationale": rationale,
                 "parse_error": parse_error,
                 "request_parameters": saved_parameters(parameters),
                 "finish_reason": finish_reason(response),
+                "returned_model": response.get("model", ""),
                 "usage": usage_counts(response),
                 "latency_s": round(time.monotonic() - started, 3),
             }
@@ -376,6 +502,7 @@ def main():
     parser.add_argument("command", choices=["dry-run", "list-models", "generate", "score"])
     parser.add_argument("--config", default="benchmark_config.json")
     parser.add_argument("--questions", default="questions.jsonl")
+    parser.add_argument("--contexts", default="retrieval_contexts.jsonl")
     parser.add_argument("--answers", default="outputs/model_answers.jsonl")
     parser.add_argument("--scores", default="outputs/model_scores.jsonl")
     parser.add_argument("--profile", default="default", help="API profile used by list-models")
@@ -388,13 +515,22 @@ def main():
     config = load_json(resolve(root, args.config))
     questions_path = resolve(root, args.questions)
     questions = load_jsonl(questions_path) if args.command != "list-models" else []
+    if len({row["id"] for row in questions}) != len(questions):
+        raise ValueError("Question IDs must be unique")
+    selected = enabled_models(config, "candidate_models", args.candidate_label)
+    needs_context = any(item.get("condition", "prompt_rag") == "prompt_rag" for item in selected)
+    contexts = load_contexts(resolve(root, args.contexts)) if needs_context and args.command in {"dry-run", "generate"} else {}
+    if needs_context and args.command in {"dry-run", "generate"}:
+        missing = {row["id"] for row in questions} - set(contexts)
+        if missing:
+            raise ValueError(f"Missing frozen retrieval contexts: {sorted(missing)}")
 
     if args.command == "dry-run":
-        dry_run(config, questions, args.candidate_label, args.evaluator_label)
+        dry_run(config, questions, contexts, args.candidate_label, args.evaluator_label)
     elif args.command == "list-models":
         list_models(config, args.profile)
     elif args.command == "generate":
-        generate(config, questions, resolve(root, args.answers), args.sleep_s, args.candidate_label)
+        generate(config, questions, contexts, resolve(root, args.answers), args.sleep_s, args.candidate_label)
     elif args.command == "score":
         score(config, resolve(root, args.answers), resolve(root, args.scores), args.sleep_s, args.evaluator_label)
 

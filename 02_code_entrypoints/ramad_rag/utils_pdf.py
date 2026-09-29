@@ -23,6 +23,21 @@ def extract_text_from_pdf(
     return ocr_pdf(pdf_path, poppler_path=poppler_path, tesseract_cmd=tesseract_cmd)
 
 
+def extract_pages_from_pdf(
+    pdf_path: str | Path,
+    use_ocr: bool = False,
+    poppler_path: str | Path | None = None,
+    tesseract_cmd: str | Path | None = None,
+) -> list[tuple[int | str, str]]:
+    with fitz.open(str(pdf_path)) as pdf:
+        pages = [(number, page.get_text()) for number, page in enumerate(pdf, start=1)]
+    if any(text.strip() for _, text in pages):
+        return [(number, text) for number, text in pages if text.strip()]
+    if use_ocr:
+        return [("", ocr_pdf(pdf_path, poppler_path=poppler_path, tesseract_cmd=tesseract_cmd))]
+    return []
+
+
 def ocr_pdf(
     pdf_path: str | Path,
     poppler_path: str | Path | None = None,
@@ -58,6 +73,7 @@ def build_structured_chunks(
     chunk_overlap: int = 100,
     chunking_strategy: str = "default",
     combine_text_under_n_chars: int = 50,
+    length_function=len,
 ) -> list[Document]:
     text = clean_text(text)
     if not text:
@@ -76,6 +92,7 @@ def build_structured_chunks(
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap,
+        length_function=length_function,
         separators=["\n\n", "\n", ".", "。", "!", "！", "?", "？", ",", "，"],
     )
     return [
