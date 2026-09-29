@@ -361,9 +361,23 @@ def list_models(config: dict, profile_name: str):
     print(json.dumps({"data": compact}, ensure_ascii=False, indent=2))
 
 
+def validate_adapters(candidates):
+    for item in candidates:
+        adapter_path = item.get("adapter_path")
+        if adapter_path:
+            adapter = Path(adapter_path)
+            if not (adapter / "adapter_config.json").is_file():
+                raise FileNotFoundError(f"Adapter configuration not found for {item['label']}: {adapter}")
+            if not any((adapter / name).is_file() for name in (
+                "adapter_model.safetensors", "adapter_model.bin", "adapter_model.safetensors.index.json"
+            )):
+                raise FileNotFoundError(f"Adapter weights not found for {item['label']}: {adapter}")
+
+
 def dry_run(config: dict, questions: list, contexts: dict, candidate_labels, evaluator_labels):
     candidates = enabled_models(config, "candidate_models", candidate_labels)
     evaluators = enabled_models(config, "evaluator_models", evaluator_labels)
+    validate_adapters(candidates)
     plan = {
         "run_label": config.get("run_label", ""),
         "question_count": len(questions),
@@ -387,6 +401,7 @@ def generate(config: dict, questions: list, contexts: dict, output_path: Path, s
     candidates = enabled_models(config, "candidate_models", labels)
     if not candidates:
         raise RuntimeError("No candidate model is enabled")
+    validate_adapters(candidates)
     done = existing_keys(output_path, ["run_label", "candidate_label", "question_id"])
     run_label = config.get("run_label", "")
     for model_config in candidates:
@@ -529,7 +544,11 @@ def main():
     args = parser.parse_args()
 
     root = Path(__file__).resolve().parent
-    config = load_json(resolve(root, args.config))
+    config_path = resolve(root, args.config)
+    config = load_json(config_path)
+    for item in config.get("candidate_models", []):
+        if item.get("adapter_path"):
+            item["adapter_path"] = str(resolve(config_path.parent, item["adapter_path"]))
     questions_path = resolve(root, args.questions)
     questions = load_jsonl(questions_path) if args.command != "list-models" else []
     if len({row["id"] for row in questions}) != len(questions):

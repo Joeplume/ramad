@@ -39,7 +39,7 @@ The published model ID and exact Qwen base revision are recorded in `02_code_ent
 
 1. Build the literature index from the authorized PDF set with `02_code_entrypoints/ramad_rag/build_index.py`. Its embedding model, token-based chunking, and top-five retrieval settings are listed in `01_benchmark/retrieval_config.json`.
 2. Fill `01_benchmark/doi_mapping.example.csv` with real source filenames, DOIs, and titles. Run `01_benchmark/freeze_retrieval.py` to write one fixed `retrieval_contexts.jsonl` record per question. Use the same record for every `prompt_rag` candidate.
-3. Copy `01_benchmark/benchmark_config.example.json` to `01_benchmark/benchmark_config.json`. Replace the RAMAD adapter path with the released directory. Verify the exact API model IDs and save the access date and provider in the run record.
+3. Copy `01_benchmark/benchmark_config.example.json` to `01_benchmark/benchmark_config.json`. Replace the RAMAD adapter path with the released directory; a relative path is resolved from the configuration file. `dry-run` checks for adapter configuration and weights before model calls. Verify the exact API model IDs and save the access date and provider in the run record.
 4. Run the commands below. The `dry-run` lists the complete model and question matrix before any model call. `generate` records the actual messages, retrieved passages, parameters, response, returned model ID, and usage for each call.
 5. Give the blinded response sheet and six-dimension rubric to three domain experts. After their independent scores are entered, `human_primary.py analyze` creates the model table, question-paired differences, bootstrap intervals, and an exact sign-flip test. The optional LLM-as-judge script is secondary to expert scoring.
 
