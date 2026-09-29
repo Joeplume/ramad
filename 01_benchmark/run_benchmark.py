@@ -233,6 +233,9 @@ def saved_parameters(parameters: dict):
         "seed",
         "frequency_penalty",
         "presence_penalty",
+        "output_config",
+        "reasoning_effort",
+        "thinking",
     )
     return {key: parameters[key] for key in allowed if key in parameters}
 
@@ -399,6 +402,20 @@ def generate(config: dict, questions: list, contexts: dict, output_path: Path, s
             started = time.monotonic()
             response, profile_name, parameters = completion(config, model_config, messages, "generation")
             answer = visible_text(response)
+            if not answer.strip() or finish_reason(response) == "length":
+                append_jsonl(output_path.with_name(output_path.stem + "_failures.jsonl"), {
+                    "timestamp_utc": utc_now(),
+                    "run_label": run_label,
+                    "candidate_label": model_config["label"],
+                    "question_id": question["id"],
+                    "prompt_sha256": digest(messages),
+                    "returned_model": response.get("model", ""),
+                    "finish_reason": finish_reason(response),
+                    "usage": usage_counts(response),
+                    "request_parameters": saved_parameters(parameters),
+                    "partial_answer": answer,
+                })
+                raise RuntimeError(f"Empty or truncated answer for {model_config['label']} / {question['id']}; see generation failures log")
             row = {
                 "schema_version": 1,
                 "record_type": "candidate_answer",
