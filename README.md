@@ -31,6 +31,8 @@ python -m pip install torch==2.9.1 --index-url https://download.pytorch.org/whl/
 python -m pip install -r requirements-llm.txt
 ```
 
+`environment-llm-windows-cu128.txt` records the 117-package environment used for the CUDA import check; `pip check` found no broken requirements.
+
 The published model ID and exact Qwen base revision are recorded in `02_code_entrypoints/ramad_model/training_config.json`. The training input is the full 1,000-record corpus; the saved train and validation IDs are in `02_code_entrypoints/ramad_model/splits/`.
 
 ## Reproduce the LLM comparison
