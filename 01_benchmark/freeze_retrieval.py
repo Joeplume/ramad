@@ -13,9 +13,9 @@ def main():
     parser = argparse.ArgumentParser(description="Freeze one retrieved evidence set per benchmark question.")
     parser.add_argument("--index-dir", type=Path, required=True)
     parser.add_argument("--questions", type=Path, default=Path(__file__).with_name("questions.jsonl"))
-    parser.add_argument("--doi-map", type=Path, required=True)
+    parser.add_argument("--doi-map", type=Path, help="Optional verified source-title to DOI mapping CSV")
     parser.add_argument("--out", type=Path, default=Path(__file__).with_name("retrieval_contexts.jsonl"))
-    parser.add_argument("--embedding-model", default="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+    parser.add_argument("--embedding-model", default="sentence-transformers/all-MiniLM-L6-v2")
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--allow-pickle", action="store_true")
     args = parser.parse_args()
@@ -27,10 +27,13 @@ def main():
     from langchain_community.embeddings import HuggingFaceEmbeddings
     from langchain_community.vectorstores import FAISS
 
-    with args.doi_map.open(encoding="utf-8-sig", newline="") as handle:
-        mapping = {row["source_file"].strip(): row for row in csv.DictReader(handle)}
-    if not mapping:
-        raise ValueError("DOI mapping is empty")
+    mapping = {}
+    if args.doi_map:
+        with args.doi_map.open(encoding="utf-8-sig", newline="") as handle:
+            for row in csv.DictReader(handle):
+                key = (row.get("source_file") or row.get("source") or "").strip()
+                if key:
+                    mapping[key] = row
     embeddings = HuggingFaceEmbeddings(model_name=args.embedding_model)
     index = FAISS.load_local(
         str(args.index_dir), embeddings, allow_dangerous_deserialization=True
@@ -43,15 +46,19 @@ def main():
         matches = index.similarity_search_with_score(question["question"], k=args.top_k)
         passages = []
         for document, distance in matches:
-            source_file = str(document.metadata.get("source_file", "")).strip()
-            source = mapping.get(source_file)
-            if source is None or not str(source.get("doi", "")).strip():
-                raise ValueError(f"DOI mapping missing for {source_file or 'unknown source'}")
+            source_file = str(
+                document.metadata.get("source_file")
+                or document.metadata.get("source")
+                or ""
+            ).strip()
+            if not source_file:
+                raise ValueError("Retrieved passage has no source identifier")
+            source = mapping.get(source_file, {})
             passages.append({
                 "source_id": source_file,
-                "doi": source["doi"].strip(),
+                "doi": str(source.get("doi", "")).strip(),
                 "page": document.metadata.get("page", ""),
-                "title": source.get("title", "").strip(),
+                "title": str(source.get("title") or source_file).strip(),
                 "distance": float(distance),
                 "text": document.page_content.strip(),
             })

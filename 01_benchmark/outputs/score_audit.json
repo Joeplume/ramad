@@ -1,0 +1,28 @@
+{
+  "run_label": "shared-original-index-reconstruction-20260930-cap16384",
+  "models": [
+    "Qwen3-4B-prompt-RAG",
+    "RAMAD-LoRA-prompt-RAG",
+    "Claude-Fable-5-prompt-RAG",
+    "Kimi-K3-prompt-RAG",
+    "ChatGPT-o3-prompt-RAG",
+    "DeepSeek-V3-prompt-RAG",
+    "ChatGPT-4o-prompt-RAG"
+  ],
+  "questions": [
+    "Q1_preprocessing_detection_chain",
+    "Q2_algorithm_data_analysis",
+    "Q3_engineering_deployment",
+    "Q4_innovation_optimization",
+    "Q5_extreme_robustness"
+  ],
+  "judges": [
+    "ChatGPT-o3-prompt-RAG",
+    "DeepSeek-V3-prompt-RAG",
+    "ChatGPT-4o-prompt-RAG",
+    "Qwen3-4B-prompt-RAG"
+  ],
+  "score_rows": 140,
+  "model_scores_sha256": "01082ec6dd97d0ecbccfe3b63843b689544cdc6a3bf17e4bce294315a05700ba",
+  "model_answers_sha256": "de04c9908a1b5f5c36680244905cc99859099235588914f1175dbc19f5bca7ce"
+}

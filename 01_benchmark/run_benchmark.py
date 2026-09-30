@@ -17,6 +17,8 @@ DIMENSIONS = ["SR", "CSC", "DQ", "CS", "QR", "IS"]
 LOCAL_MODELS = {}
 
 PROMPT_DIR = Path(__file__).resolve().parents[1] / "prompts"
+if not (PROMPT_DIR / "domain_system.txt").is_file():
+    PROMPT_DIR = Path(__file__).resolve().parent
 GENERATION_SYSTEM_PROMPT = (PROMPT_DIR / "domain_system.txt").read_text(encoding="utf-8").strip()
 RAG_USER_TEMPLATE = (PROMPT_DIR / "rag_user.txt").read_text(encoding="utf-8").strip()
 
@@ -24,12 +26,12 @@ SCORING_SYSTEM_PROMPT = """You are an impartial reviewer of LLM-generated Raman/
 
 Score the candidate answer from 1 to 5 on each dimension, where 1 = poor, 3 = acceptable, and 5 = excellent.
 
-- SR: scenario relevance
-- CSC: scientific caution and support
-- DQ: design quality
-- CS: clarity and structure
-- QR: question responsiveness
-- IS: insightfulness
+- SR: scenario relevance to fishpond water, target residues, and field constraints
+- CSC: citation support and credibility against the supplied retrieved passages
+- DQ: feasible and sufficiently specified analytical design
+- CS: clarity and structure of the workflow and its rationale
+- QR: direct and complete response to the question
+- IS: useful, justified optimization beyond generic suggestions
 
 Return only strict JSON with this structure:
 {
@@ -236,6 +238,7 @@ def saved_parameters(parameters: dict):
         "output_config",
         "reasoning_effort",
         "thinking",
+        "enable_thinking",
     )
     return {key: parameters[key] for key in allowed if key in parameters}
 
@@ -289,12 +292,17 @@ def local_completion(config: dict, model_config: dict, messages: list, parameter
         LOCAL_MODELS[key] = (tokenizer, model)
     tokenizer, model = LOCAL_MODELS[key]
     if getattr(tokenizer, "chat_template", None):
-        prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        template_kwargs = {"tokenize": False, "add_generation_prompt": True}
+        if "enable_thinking" in model_config:
+            template_kwargs["enable_thinking"] = bool(model_config["enable_thinking"])
+        prompt = tokenizer.apply_chat_template(messages, **template_kwargs)
     else:
         prompt = "\n\n".join(f"{item['role']}:\n{item['content']}" for item in messages) + "\n\nassistant:\n"
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
     parameters = dict(config.get(parameter_group, {}))
     parameters.update(model_config.get("request_overrides", {}))
+    if "enable_thinking" in model_config:
+        parameters["enable_thinking"] = bool(model_config["enable_thinking"])
     temperature = float(parameters.get("temperature", 0))
     generation = {
         "max_new_tokens": int(parameters.get("max_tokens", 1024)),
@@ -308,9 +316,11 @@ def local_completion(config: dict, model_config: dict, messages: list, parameter
         tokens = model.generate(**inputs, **generation)
     answer_ids = tokens[0, inputs["input_ids"].shape[1] :]
     answer = tokenizer.decode(answer_ids, skip_special_tokens=True).strip()
+    generation_limit = int(parameters.get("max_tokens", 1024))
+    reached_limit = answer_ids.shape[0] >= generation_limit
     response = {
         "model": model_name,
-        "choices": [{"message": {"content": answer}, "finish_reason": "stop"}],
+        "choices": [{"message": {"content": answer}, "finish_reason": "length" if reached_limit else "stop"}],
         "usage": {
             "prompt_tokens": inputs["input_ids"].shape[1],
             "completion_tokens": answer_ids.shape[0],
@@ -331,10 +341,20 @@ def parse_score(text: str):
     if cleaned.startswith("```"):
         cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
         cleaned = re.sub(r"\s*```$", "", cleaned)
-    match = re.search(r"\{.*\}", cleaned, flags=re.DOTALL)
-    if match:
-        cleaned = match.group(0)
-    data = json.loads(cleaned)
+    data = None
+    decoder = json.JSONDecoder()
+    for index, character in enumerate(cleaned):
+        if character != "{":
+            continue
+        try:
+            candidate, _ = decoder.raw_decode(cleaned[index:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(candidate, dict) and all(dimension in candidate for dimension in DIMENSIONS):
+            data = candidate
+            break
+    if data is None:
+        raise ValueError("No complete six-dimension JSON object was returned")
     scores = {}
     for dimension in DIMENSIONS:
         value = float(data[dimension])
@@ -490,12 +510,34 @@ def score(config: dict, answer_path: Path, score_path: Path, sleep_s: float, lab
             started = time.monotonic()
             response, profile_name, parameters = completion(config, evaluator, messages, "scoring")
             text = visible_text(response)
+            if not text.strip() or finish_reason(response) == "length":
+                append_jsonl(score_path.with_name(score_path.stem + "_failures.jsonl"), {
+                    "timestamp_utc": utc_now(),
+                    "run_label": run_label,
+                    "evaluator_label": evaluator["label"],
+                    "candidate_label": answer_row["candidate_label"],
+                    "question_id": answer_row["question_id"],
+                    "finish_reason": finish_reason(response),
+                    "usage": usage_counts(response),
+                    "partial_response": text,
+                })
+                raise RuntimeError(f"Empty or truncated reviewer score: {evaluator['label']} / {answer_row['candidate_label']} / {answer_row['question_id']}")
             try:
                 scores, rationale = parse_score(text)
                 parse_error = ""
             except Exception as exc:
-                scores, rationale = {}, ""
-                parse_error = f"{type(exc).__name__}: evaluator output was not valid six-dimension JSON"
+                append_jsonl(score_path.with_name(score_path.stem + "_failures.jsonl"), {
+                    "timestamp_utc": utc_now(),
+                    "run_label": run_label,
+                    "evaluator_label": evaluator["label"],
+                    "candidate_label": answer_row["candidate_label"],
+                    "question_id": answer_row["question_id"],
+                    "finish_reason": finish_reason(response),
+                    "usage": usage_counts(response),
+                    "partial_response": text,
+                    "parse_error": f"{type(exc).__name__}: {exc}",
+                })
+                raise RuntimeError(f"Invalid reviewer score: {evaluator['label']} / {answer_row['candidate_label']} / {answer_row['question_id']}") from exc
             row = {
                 "schema_version": 1,
                 "record_type": "evaluator_score",

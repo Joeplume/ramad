@@ -1,7 +1,9 @@
 import argparse
 import csv
 import json
+import random
 from collections import defaultdict
+from itertools import product
 from pathlib import Path
 
 
@@ -35,6 +37,24 @@ def mean(values):
     if not values:
         raise ValueError("Cannot calculate a mean from an empty sequence")
     return sum(values) / len(values)
+
+
+def bootstrap_ci(values, seed=42, repetitions=10000):
+    rng = random.Random(seed)
+    samples = sorted(
+        mean([values[rng.randrange(len(values))] for _ in values])
+        for _ in range(repetitions)
+    )
+    return samples[int(0.025 * repetitions)], samples[int(0.975 * repetitions)]
+
+
+def sign_flip_p(values):
+    observed = abs(mean(values))
+    distributions = [
+        abs(mean([value * sign for value, sign in zip(values, signs)]))
+        for signs in product((-1, 1), repeat=len(values))
+    ]
+    return sum(value >= observed - 1e-12 for value in distributions) / len(distributions)
 
 
 def normalized(values: dict):
@@ -135,7 +155,45 @@ def prepare_rows(raw_rows, candidates, evaluators, selected_run_label=None):
     return valid, rejected
 
 
-def aggregate(config_path: Path, scores_path: Path, output_dir: Path, max_iters, tolerance, epsilon, damping, run_label):
+def require_complete_matrix(answer_rows, score_rows, questions, candidates, evaluators, run_label):
+    question_ids = {row["id"] for row in questions}
+    expected_answers = set(product(candidates, question_ids))
+    actual_answers = {}
+    for row in answer_rows:
+        if row.get("run_label") != run_label:
+            continue
+        key = (row.get("candidate_label"), row.get("question_id"))
+        if key in actual_answers:
+            raise RuntimeError(f"Duplicate answer: {key}")
+        if row.get("finish_reason") != "stop" or not str(row.get("answer", "")).strip():
+            raise RuntimeError(f"Incomplete answer: {key}")
+        actual_answers[key] = row
+    if set(actual_answers) != expected_answers:
+        missing = sorted(expected_answers - set(actual_answers))
+        extra = sorted(set(actual_answers) - expected_answers)
+        raise RuntimeError(f"Answer matrix is incomplete: missing={missing[:8]}, extra={extra[:8]}")
+
+    expected_scores = set(product(evaluators, candidates, question_ids))
+    actual_scores = {}
+    for row in score_rows:
+        if row.get("run_label") != run_label:
+            continue
+        key = (row.get("evaluator_label"), row.get("candidate_label"), row.get("question_id"))
+        if key in actual_scores:
+            raise RuntimeError(f"Duplicate reviewer score: {key}")
+        if row.get("parse_error") or row.get("finish_reason") != "stop":
+            raise RuntimeError(f"Incomplete reviewer score: {key}")
+        values = row.get("scores") or {}
+        if set(values) != set(DIMENSIONS):
+            raise RuntimeError(f"Six-dimension score is incomplete: {key}")
+        actual_scores[key] = row
+    if set(actual_scores) != expected_scores:
+        missing = sorted(expected_scores - set(actual_scores))
+        extra = sorted(set(actual_scores) - expected_scores)
+        raise RuntimeError(f"Reviewer score matrix is incomplete: missing={missing[:8]}, extra={extra[:8]}")
+
+
+def aggregate(config_path: Path, scores_path: Path, output_dir: Path, max_iters, tolerance, epsilon, damping, run_label, answers_path: Path, questions_path: Path):
     config = load_json(config_path)
     candidates = enabled_labels(config, "candidate_models")
     evaluators = enabled_labels(config, "evaluator_models")
@@ -148,6 +206,12 @@ def aggregate(config_path: Path, scores_path: Path, output_dir: Path, max_iters,
     available_run_labels = sorted({row.get("run_label", "") for row in raw_rows})
     if run_label is None and len(available_run_labels) > 1:
         raise RuntimeError(f"Multiple run labels are present; choose one with --run-label: {available_run_labels}")
+    selected_run_label = run_label or (available_run_labels[0] if available_run_labels else "")
+    questions = load_jsonl(questions_path)
+    require_complete_matrix(
+        load_jsonl(answers_path), raw_rows, questions,
+        candidates, evaluators, selected_run_label,
+    )
     flat, rejected = prepare_rows(raw_rows, candidates, evaluators, run_label)
     output_dir.mkdir(parents=True, exist_ok=True)
     write_csv(
@@ -230,6 +294,57 @@ def aggregate(config_path: Path, scores_path: Path, output_dir: Path, max_iters,
     write_csv(output_dir / "weighted_final_scores.csv", score_columns, weighted_rows)
     write_csv(output_dir / "table_s4_updated.csv", score_columns, weighted_rows)
 
+    question_scores = {}
+    per_question_rows = []
+    question_ids = [question["id"] for question in questions]
+    score_lookup = {
+        (row["dimension"], row["evaluator"], row["candidate"], row["question_id"]): row["score"]
+        for row in flat
+    }
+    for candidate in candidates:
+        for question_id in question_ids:
+            row = {"Model": candidate, "question_id": question_id}
+            for dimension in DIMENSIONS:
+                row[dimension] = sum(
+                    weights_by_dimension[dimension][evaluator]
+                    * score_lookup[(dimension, evaluator, candidate, question_id)]
+                    for evaluator in evaluators
+                )
+            row["Total_30"] = sum(row[dimension] for dimension in DIMENSIONS)
+            question_scores[(candidate, question_id)] = row["Total_30"]
+            per_question_rows.append(row)
+    write_csv(
+        output_dir / "per_question_weighted_scores.csv",
+        ["Model", "question_id", *DIMENSIONS, "Total_30"],
+        per_question_rows,
+    )
+
+    reference = "RAMAD-LoRA-prompt-RAG"
+    if reference in candidates:
+        paired_rows = []
+        for candidate in candidates:
+            if candidate == reference:
+                continue
+            differences = [
+                question_scores[(reference, question_id)] - question_scores[(candidate, question_id)]
+                for question_id in question_ids
+            ]
+            low, high = bootstrap_ci(differences)
+            paired_rows.append({
+                "reference": reference,
+                "comparator": candidate,
+                "n_questions": len(question_ids),
+                "mean_difference_30": mean(differences),
+                "bootstrap_95_low": low,
+                "bootstrap_95_high": high,
+                "exact_sign_flip_p": sign_flip_p(differences),
+            })
+        write_csv(
+            output_dir / "paired_comparisons.csv",
+            ["reference", "comparator", "n_questions", "mean_difference_30", "bootstrap_95_low", "bootstrap_95_high", "exact_sign_flip_p"],
+            paired_rows,
+        )
+
     weight_rows = []
     for dimension in DIMENSIONS:
         row = {"Dimension": dimension}
@@ -261,6 +376,8 @@ def main():
     )
     parser.add_argument("--config", default="benchmark_config.json")
     parser.add_argument("--scores", default="outputs/model_scores.jsonl")
+    parser.add_argument("--answers", default="outputs/model_answers.jsonl")
+    parser.add_argument("--questions", default="questions.jsonl")
     parser.add_argument("--out-dir", default="outputs/summary")
     parser.add_argument("--max-iters", type=int, default=200)
     parser.add_argument("--tolerance", type=float, default=1e-7)
@@ -286,6 +403,8 @@ def main():
         args.epsilon,
         args.damping,
         args.run_label,
+        resolve(root, args.answers),
+        resolve(root, args.questions),
     )
 
 

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 
-DEFAULT_EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+DEFAULT_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 PROMPT_DIR = Path(__file__).resolve().parents[2] / "prompts"
 SYSTEM_PROMPT = (PROMPT_DIR / "domain_system.txt").read_text(encoding="utf-8").strip()
 RAG_USER_TEMPLATE = (PROMPT_DIR / "rag_user.txt").read_text(encoding="utf-8").strip()

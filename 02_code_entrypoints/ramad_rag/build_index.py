@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 
 
-DEFAULT_EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+DEFAULT_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 
 def parse_args() -> argparse.Namespace:
@@ -58,39 +58,33 @@ def build_index(
 ) -> None:
     from langchain_community.embeddings import HuggingFaceEmbeddings
     from langchain_community.vectorstores import FAISS
-    from transformers import AutoTokenizer
-
     try:
-        from .utils_pdf import build_structured_chunks, extract_metadata, extract_pages_from_pdf
+        from .utils_pdf import build_structured_chunks, extract_metadata, extract_text_from_pdf
     except ImportError:
-        from utils_pdf import build_structured_chunks, extract_metadata, extract_pages_from_pdf
+        from utils_pdf import build_structured_chunks, extract_metadata, extract_text_from_pdf
 
     if not pdf_dir.is_dir():
         raise FileNotFoundError(f"PDF directory not found: {pdf_dir}")
     if chunk_size <= 0 or chunk_overlap < 0 or chunk_overlap >= chunk_size:
         raise ValueError("Require chunk_size > 0 and 0 <= chunk_overlap < chunk_size.")
 
-    tokenizer = AutoTokenizer.from_pretrained(embedding_model_name, use_fast=True)
-    token_length = lambda text: len(tokenizer.encode(text, add_special_tokens=False))
     documents = []
     for pdf_path in sorted(pdf_dir.glob("*.pdf")):
         try:
-            pages = extract_pages_from_pdf(
+            text = extract_text_from_pdf(
                 pdf_path,
                 use_ocr=use_ocr,
                 poppler_path=poppler_path,
                 tesseract_cmd=tesseract_cmd,
             )
-            for page_number, text in pages:
-                documents.extend(
-                    build_structured_chunks(
-                        text,
-                        {**extract_metadata(pdf_path), "page": page_number},
-                        chunk_size=chunk_size,
-                        chunk_overlap=chunk_overlap,
-                        length_function=token_length,
-                    )
+            documents.extend(
+                build_structured_chunks(
+                    text,
+                    extract_metadata(pdf_path),
+                    chunk_size=chunk_size,
+                    chunk_overlap=chunk_overlap,
                 )
+            )
         except Exception as exc:
             print(f"Skipping {pdf_path.name}: {exc}")
 

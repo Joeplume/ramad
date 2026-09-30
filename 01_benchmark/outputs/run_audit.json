@@ -1,0 +1,40 @@
+{
+  "run_label": "shared-original-index-reconstruction-20260930-cap16384",
+  "models": [
+    "Qwen3-4B-prompt-RAG",
+    "RAMAD-LoRA-prompt-RAG",
+    "Claude-Fable-5-prompt-RAG",
+    "Kimi-K3-prompt-RAG",
+    "ChatGPT-o3-prompt-RAG",
+    "DeepSeek-V3-prompt-RAG",
+    "ChatGPT-4o-prompt-RAG"
+  ],
+  "questions": [
+    "Q1_preprocessing_detection_chain",
+    "Q2_algorithm_data_analysis",
+    "Q3_engineering_deployment",
+    "Q4_innovation_optimization",
+    "Q5_extreme_robustness"
+  ],
+  "answer_rows": 35,
+  "shared_prompt_sha256": {
+    "Q1_preprocessing_detection_chain": "ef8bdbbae1b6b1c55b85cc89b15ef2529c45b027757e90472cbdababf3d2068d",
+    "Q2_algorithm_data_analysis": "525277a40b32f251898af34f2f32704bb0f40a32cc13b9b7e5eb488f9a424464",
+    "Q3_engineering_deployment": "9a211420f3bea56977b5cd9df5530108040434a2cca49073c9c74330b1cf54a7",
+    "Q4_innovation_optimization": "04736f5ec629204db3e4d41c8a702ac47702953e2268ee396c95ab829db36774",
+    "Q5_extreme_robustness": "489bd1a6c3f9c6fd26691252fb537a28976592130670677a18bc7c5cc8c50d0d"
+  },
+  "shared_retrieval_sha256": {
+    "Q1_preprocessing_detection_chain": "07e7a11aa9686cd009889aa5cb0e4b4135b7fa77b9705a1731d7d32e4fe3c991",
+    "Q2_algorithm_data_analysis": "fcb5c48ce4a9872b543e0039ff48f919356479ce3f51b739fd696e76204c7434",
+    "Q3_engineering_deployment": "6436e4beae8d8abe3abe7746aff486ec4ca86c58414cba43f91ff8b8407870a5",
+    "Q4_innovation_optimization": "63e9abe6fed625a4ae00b2651e6248f119b3c4099ed6d5a27191ece06bce294c",
+    "Q5_extreme_robustness": "10e6d0576e5de13be561411b05f17d57f888f90a96c96c61bcc1f60175edcc66"
+  },
+  "file_sha256": {
+    "benchmark_config.json": "3f59529c315f1f1d079ffdf9de30be110e62d534f377770213f957b0bc804083",
+    "questions.jsonl": "9680c8a6898e7c6126da6cc955bc823dd29294c71f3dd057284354b752300f27",
+    "retrieval_contexts.jsonl": "b996eaf5eaea8557352739f660e726072726c48dd73107f5954902fc647a8f8b",
+    "outputs/model_answers.jsonl": "de04c9908a1b5f5c36680244905cc99859099235588914f1175dbc19f5bca7ce"
+  }
+}

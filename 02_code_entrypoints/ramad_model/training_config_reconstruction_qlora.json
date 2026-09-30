@@ -4,7 +4,7 @@
   "data_path": "../../04_training_corpus_1000/RAMAD_domain_QA_1000.jsonl",
   "train_ids_path": "splits/train_ids.txt",
   "validation_ids_path": "splits/validation_ids.txt",
-  "output_dir": "outputs/ramad_lora_revision3",
+  "output_dir": "outputs/ramad_reconstruction_qlora_20260930",
   "required_fields": [
     "id",
     "instruction",
@@ -19,12 +19,14 @@
   "optimizer": "adamw_torch",
   "learning_rate": 2e-05,
   "weight_decay": 0.01,
-  "per_device_train_batch_size": 4,
-  "per_device_eval_batch_size": 4,
-  "gradient_accumulation_steps": 8,
+  "per_device_train_batch_size": 1,
+  "per_device_eval_batch_size": 1,
+  "gradient_accumulation_steps": 32,
   "num_train_epochs": 3,
   "warmup_ratio": 0.1,
   "fp16": true,
+  "load_in_4bit": true,
+  "gradient_checkpointing": true,
   "logging_steps": 5,
   "save_total_limit": 2,
   "lora": {
@@ -33,13 +35,10 @@
     "dropout": 0.05,
     "target_modules": [
       "q_proj",
-      "k_proj",
-      "v_proj",
-      "o_proj",
-      "gate_proj",
-      "up_proj",
-      "down_proj"
-    ]
+      "v_proj"
+    ],
+    "upper_layer_count": 12,
+    "include_lm_head": true
   },
   "generation": {
     "max_new_tokens": 512,

@@ -94,11 +94,12 @@ def main() -> None:
         raise FileNotFoundError(f"Instruction JSONL not found: {data_path}")
 
     from datasets import load_dataset
-    from peft import LoraConfig, TaskType, get_peft_model
+    from peft import LoraConfig, TaskType, get_peft_model, prepare_model_for_kbit_training
     import torch
     from transformers import (
         AutoModelForCausalLM,
         AutoTokenizer,
+        BitsAndBytesConfig,
         DataCollatorForSeq2Seq,
         Trainer,
         TrainingArguments,
@@ -135,15 +136,45 @@ def main() -> None:
     model_kwargs: dict[str, Any] = {}
     if use_fp16:
         model_kwargs["torch_dtype"] = torch.float16
+    if config.get("load_in_4bit", False):
+        if not torch.cuda.is_available():
+            raise RuntimeError("4-bit training requires a CUDA device")
+        model_kwargs["device_map"] = {"": 0}
+        model_kwargs["quantization_config"] = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_compute_dtype=torch.float16 if use_fp16 else torch.bfloat16,
+        )
     model = AutoModelForCausalLM.from_pretrained(model_name_or_path, revision=model_revision, **model_kwargs)
     model.config.use_cache = False
+    if config.get("load_in_4bit", False):
+        model = prepare_model_for_kbit_training(
+            model,
+            use_gradient_checkpointing=bool(config.get("gradient_checkpointing", False)),
+        )
+
+    target_modules = list(config["lora"]["target_modules"])
+    upper_layer_count = config["lora"].get("upper_layer_count")
+    if upper_layer_count is not None:
+        layer_count = int(model.config.num_hidden_layers)
+        if not 0 < int(upper_layer_count) <= layer_count:
+            raise ValueError("upper_layer_count must be between 1 and the model's layer count")
+        start = layer_count - int(upper_layer_count)
+        target_modules = [
+            f"model.layers.{layer}.self_attn.{projection}"
+            for layer in range(start, layer_count)
+            for projection in target_modules
+        ]
+        if config["lora"].get("include_lm_head", False):
+            target_modules.append("lm_head")
 
     lora_config = LoraConfig(
         task_type=TaskType.CAUSAL_LM,
         r=int(config["lora"]["r"]),
         lora_alpha=int(config["lora"]["alpha"]),
         lora_dropout=float(config["lora"]["dropout"]),
-        target_modules=list(config["lora"]["target_modules"]),
+        target_modules=target_modules,
         bias="none",
     )
     model = get_peft_model(model, lora_config)
@@ -203,6 +234,7 @@ def main() -> None:
         "warmup_ratio": float(config["warmup_ratio"]),
         "optim": str(config["optimizer"]),
         "fp16": use_fp16,
+        "gradient_checkpointing": bool(config.get("gradient_checkpointing", False)),
         "logging_steps": int(config["logging_steps"]),
         "save_strategy": "epoch",
         "save_total_limit": int(config["save_total_limit"]),

@@ -1,36 +1,136 @@
 {
   "run_label": "shared-rag-revision3-YYYYMMDD",
-  "base_model_revision": "906bfd4b4dc7f14ee4320094d8b41684abff8539",
+  "base_model_revision": "1cfa9a7208912126459214e8b04321603b3df60c",
   "api_profiles": {
     "qingyun": {
       "base_url": "https://api.qingyuntop.top",
       "api_key_env": "QINGYUN_API_KEY",
       "chat_completions_path": "/v1/chat/completions",
       "models_path": "/v1/models",
-      "request_timeout_s": 180,
-      "max_retries": 2,
+      "request_timeout_s": 600,
+      "max_retries": 4,
       "retry_sleep_s": 4
     }
   },
   "generation": {
     "temperature": 0,
-    "max_tokens": 4096,
+    "max_tokens": 16384,
     "top_p": 1
   },
   "scoring": {
     "temperature": 0,
-    "max_tokens": 600,
+    "max_tokens": 8192,
     "top_p": 1
   },
   "candidate_models": [
-    {"label": "Qwen3-4B-bare", "backend": "local", "model": "Qwen/Qwen3-4B-Base", "condition": "bare", "use_4bit": true, "enabled": true},
-    {"label": "Qwen3-4B-prompt", "backend": "local", "model": "Qwen/Qwen3-4B-Base", "condition": "prompt", "use_4bit": true, "enabled": true},
-    {"label": "Qwen3-4B-prompt-RAG", "backend": "local", "model": "Qwen/Qwen3-4B-Base", "condition": "prompt_rag", "use_4bit": true, "enabled": true},
-    {"label": "RAMAD-LoRA-prompt-RAG", "backend": "local", "model": "Qwen/Qwen3-4B-Base", "adapter_path": "REPLACE_WITH_RELEASED_ADAPTER_DIRECTORY", "condition": "prompt_rag", "use_4bit": true, "enabled": true},
-    {"label": "Claude-Fable-5-prompt-RAG", "backend": "api", "api_profile": "qingyun", "model": "claude-fable-5", "condition": "prompt_rag", "enabled": true},
-    {"label": "Kimi-K3-prompt-RAG", "backend": "api", "api_profile": "qingyun", "model": "kimi-k3", "condition": "prompt_rag", "enabled": true}
+    {
+      "label": "Qwen3-4B-bare",
+      "backend": "local",
+      "model": "Qwen/Qwen3-4B",
+      "condition": "bare",
+      "use_4bit": true,
+      "enabled": false,
+      "enable_thinking": false
+    },
+    {
+      "label": "Qwen3-4B-prompt",
+      "backend": "local",
+      "model": "Qwen/Qwen3-4B",
+      "condition": "prompt",
+      "use_4bit": true,
+      "enabled": false,
+      "enable_thinking": false
+    },
+    {
+      "label": "Qwen3-4B-prompt-RAG",
+      "backend": "local",
+      "model": "Qwen/Qwen3-4B",
+      "condition": "prompt_rag",
+      "use_4bit": true,
+      "enabled": true,
+      "enable_thinking": false
+    },
+    {
+      "label": "RAMAD-LoRA-prompt-RAG",
+      "backend": "local",
+      "model": "Qwen/Qwen3-4B",
+      "adapter_path": "REPLACE_WITH_RELEASED_ADAPTER_DIRECTORY",
+      "condition": "prompt_rag",
+      "use_4bit": true,
+      "enabled": true,
+      "enable_thinking": false
+    },
+    {
+      "label": "Claude-Fable-5-prompt-RAG",
+      "backend": "api",
+      "api_profile": "qingyun",
+      "model": "claude-fable-5",
+      "condition": "prompt_rag",
+      "enabled": true
+    },
+    {
+      "label": "Kimi-K3-prompt-RAG",
+      "backend": "api",
+      "api_profile": "qingyun",
+      "model": "kimi-k3",
+      "condition": "prompt_rag",
+      "enabled": true
+    },
+    {
+      "label": "ChatGPT-o3-prompt-RAG",
+      "backend": "api",
+      "api_profile": "qingyun",
+      "model": "o3",
+      "condition": "prompt_rag",
+      "enabled": true
+    },
+    {
+      "label": "DeepSeek-V3-prompt-RAG",
+      "backend": "api",
+      "api_profile": "qingyun",
+      "model": "deepseek-v3",
+      "condition": "prompt_rag",
+      "enabled": true
+    },
+    {
+      "label": "ChatGPT-4o-prompt-RAG",
+      "backend": "api",
+      "api_profile": "qingyun",
+      "model": "gpt-4o",
+      "condition": "prompt_rag",
+      "enabled": true
+    }
   ],
   "evaluator_models": [
-    {"label": "DeepSeek-V3-secondary-judge", "api_profile": "qingyun", "model": "deepseek-v3", "enabled": false}
+    {
+      "label": "ChatGPT-o3-prompt-RAG",
+      "backend": "api",
+      "api_profile": "qingyun",
+      "model": "o3",
+      "enabled": true
+    },
+    {
+      "label": "DeepSeek-V3-prompt-RAG",
+      "backend": "api",
+      "api_profile": "qingyun",
+      "model": "deepseek-v3",
+      "enabled": true
+    },
+    {
+      "label": "ChatGPT-4o-prompt-RAG",
+      "backend": "api",
+      "api_profile": "qingyun",
+      "model": "gpt-4o",
+      "enabled": true
+    },
+    {
+      "label": "Qwen3-4B-prompt-RAG",
+      "backend": "local",
+      "model": "Qwen/Qwen3-4B",
+      "revision": null,
+      "use_4bit": true,
+      "enable_thinking": false,
+      "enabled": true
+    }
   ]
 }
