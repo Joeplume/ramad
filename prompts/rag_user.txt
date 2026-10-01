@@ -1,7 +1,0 @@
-Retrieved literature passages:
-{context}
-
-Question:
-{question}
-
-Cite passage numbers for literature-supported claims. Distinguish evidence from recommendations.

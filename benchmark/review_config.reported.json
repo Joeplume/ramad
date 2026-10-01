@@ -1,0 +1,52 @@
+{
+  "run_label": "main-system-chat-joint-review-20260930",
+  "review_rounds": 3,
+  "api_profiles": {
+    "qingyun": {
+      "base_url": "https://api.qingyuntop.top",
+      "api_key_env": "QINGYUN_API_KEY",
+      "chat_completions_path": "/v1/chat/completions",
+      "request_timeout_s": 600,
+      "max_retries": 4,
+      "retry_sleep_s": 4
+    }
+  },
+  "scoring": {},
+  "evaluator_models": [
+    {
+      "label": "ChatGPT-o3",
+      "backend": "api",
+      "api_profile": "qingyun",
+      "model": "o3",
+      "enabled": true
+    },
+    {
+      "label": "Deepseek-V3",
+      "backend": "api",
+      "api_profile": "qingyun",
+      "model": "deepseek-v3",
+      "enabled": true
+    },
+    {
+      "label": "ChatGPT-4o",
+      "backend": "api",
+      "api_profile": "qingyun",
+      "model": "gpt-4o",
+      "enabled": true
+    },
+    {
+      "label": "Qwen3-4b",
+      "backend": "local",
+      "model": "Qwen/Qwen3-4B",
+      "revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+      "use_4bit": true,
+      "enabled": true,
+      "enable_thinking": false,
+      "request_overrides": {
+        "max_tokens": 8192,
+        "temperature": 0
+      }
+    }
+  ],
+  "source_status": "Historical reviewer families and joint request are preserved. Exact old API versions and decoding metadata are unavailable. Local reviewer uses explicitly declared reconstruction settings. A fresh replay does not overwrite historical ratings."
+}

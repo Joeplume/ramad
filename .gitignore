@@ -1,10 +1,10 @@
 __pycache__/
 *.pyc
+*.baiduyun.uploading.cfg
 .venv/
 data/
-results/
-01_benchmark/outputs/
-01_benchmark/benchmark_config.json
-01_benchmark/retrieval_contexts.jsonl
-02_code_entrypoints/ramad_model/outputs/
+/results/
+benchmark/outputs/
+benchmark/benchmark_config.runtime.json
+src/ramad_model/outputs/
 *.env

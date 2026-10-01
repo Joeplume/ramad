@@ -1,0 +1,7 @@
+candidate,SR,CSC,DQ,CS,QR,IS,total_30,source_sheet,source_range
+RAMAD,4.58,4.17,4.5,4.17,4.42,4.33,26.25,Sheet1,K15:R15
+Deepseek-V3,4.42,3,4.83,4,4.33,4.75,25.33,Sheet1,K16:R16
+ChatGPT-o3,4,2.25,4.17,4.42,4.25,4.25,23.08,Sheet1,K17:R17
+ChatGPT-4o,3.67,2.08,3.75,4.5,4,3.58,21.67,Sheet1,K18:R18
+RAMAD-RAG,3.42,3,3.42,3.25,3.42,3,19.58,Sheet1,K19:R19
+Qwen3-4b,3.58,1.83,3.67,3.83,3.5,3.16,19.42,Sheet1,K20:R20

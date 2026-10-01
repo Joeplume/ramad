@@ -1,0 +1,10 @@
+{
+  "source_file": "文件材料/打分.doc",
+  "source_sha256": "fe8a4b70f054fd01d334023b4d22e6e457970adc90b577c465472fac4009042b",
+  "extraction": "Contiguous UTF-16LE source text bounded by rubric heading and first NUL; section and score counts validated.",
+  "reviewer_rows": 72,
+  "summary_rows": 18,
+  "question_mapping": "Not specified in source; no question IDs inferred.",
+  "human_table": "Source aggregate only; individual expert records are not present in this table.",
+  "total_policy": "Source totals retained unchanged; dimension sums and differences exported separately."
+}

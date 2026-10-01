@@ -1,0 +1,30 @@
+{
+  "base_url": "https://api.qingyuntop.top",
+  "api_key_env": "QINGYUN_API_KEY",
+  "request_timeout_s": 180,
+  "generation": {
+    "temperature": 0.2,
+    "max_tokens": 1800
+  },
+  "scoring": {
+    "temperature": 0.0,
+    "max_tokens": 1500
+  },
+  "candidate_models": [
+    {"label": "Qwen3.5-27B", "model": "qwen3.5-27b", "enabled": true},
+    {"label": "DeepSeek-V3", "model": "deepseek-v3", "enabled": true},
+    {"label": "ChatGPT-4o", "model": "gpt-4o", "enabled": true},
+    {"label": "ChatGPT-o3", "model": "o3", "enabled": true, "extra_body": {"reasoning_effort": "low", "max_tokens": 5000}},
+    {"label": "GPT-5.5", "model": "gpt-5.5", "enabled": true, "extra_body": {"reasoning_effort": "low", "max_tokens": 12000}},
+    {"label": "Grok-4", "model": "grok-4", "enabled": true},
+    {"label": "Gemini-3.1-Pro-Preview", "model": "gemini-3.1-pro-preview", "enabled": true, "extra_body": {"max_tokens": 8000}}
+  ],
+  "evaluator_models": [
+    {"label": "DeepSeek-V3", "model": "deepseek-v3", "enabled": true},
+    {"label": "ChatGPT-o3", "model": "o3", "enabled": true, "extra_body": {"reasoning_effort": "low", "max_tokens": 5000}},
+    {"label": "ChatGPT-4o", "model": "gpt-4o", "enabled": true},
+    {"label": "GPT-5.5", "model": "gpt-5.5", "enabled": true, "extra_body": {"reasoning_effort": "low", "max_tokens": 12000}},
+    {"label": "Qwen3.5-27B", "model": "qwen3.5-27b", "enabled": true},
+    {"label": "Gemini-3.1-Pro-Preview", "model": "gemini-3.1-pro-preview", "enabled": true}
+  ]
+}

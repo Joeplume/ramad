@@ -1,0 +1,70 @@
+{
+  "record_type": "fresh_system_joint_review",
+  "run_label": "main-system-chat-reconstruction-20260930-seed42",
+  "question_id": "original_overall_design",
+  "candidate_labels": [
+    "RAMAD-reconstructed",
+    "DeepSeek-V3",
+    "RAMAD-RAG",
+    "ChatGPT-4o",
+    "Qwen3-4B",
+    "ChatGPT-o3"
+  ],
+  "answer_order": [
+    "Qwen3-4B",
+    "ChatGPT-4o",
+    "DeepSeek-V3",
+    "RAMAD-reconstructed",
+    "ChatGPT-o3",
+    "RAMAD-RAG"
+  ],
+  "answers_sha256": "85368f25a9805fc41c2873203613081ab97b6b6a00d7f454ba928b847126f287",
+  "request_sha256": "5a426f253f9754432cefae8bc44d7b9554b6f071d504f83383c61ad667161090",
+  "source_request_sha256": "3d4c4eeba5559f594b1f324a36470faa529ca7a55cda813baeb0e559169e1046",
+  "source_display": "Five retrieval passages appended for the two RAG conditions, following the archived comparison.",
+  "models": [
+    {
+      "label": "RAMAD-reconstructed",
+      "requested_model": "Qwen/Qwen3-4B",
+      "returned_model": "Qwen/Qwen3-4B",
+      "prompt_sha256": "319a232db19419ca22441519e121c0e6dba2c64b97ec4e253c9e408423efda16",
+      "retrieval_sha256": "a1a3027a6fabdbe7d1e9f6d4aea82fd177904b5410487c0e7e4d56aa5753963f"
+    },
+    {
+      "label": "RAMAD-RAG",
+      "requested_model": "Qwen/Qwen3-4B",
+      "returned_model": "Qwen/Qwen3-4B",
+      "prompt_sha256": "319a232db19419ca22441519e121c0e6dba2c64b97ec4e253c9e408423efda16",
+      "retrieval_sha256": "a1a3027a6fabdbe7d1e9f6d4aea82fd177904b5410487c0e7e4d56aa5753963f"
+    },
+    {
+      "label": "Qwen3-4B",
+      "requested_model": "Qwen/Qwen3-4B",
+      "returned_model": "Qwen/Qwen3-4B",
+      "prompt_sha256": "4516fd52f982d054942a7238cdb5380264f28ed8936fe540558d49c914db32f9",
+      "retrieval_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "label": "ChatGPT-o3",
+      "requested_model": "o3",
+      "returned_model": "o3",
+      "prompt_sha256": "4516fd52f982d054942a7238cdb5380264f28ed8936fe540558d49c914db32f9",
+      "retrieval_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "label": "ChatGPT-4o",
+      "requested_model": "gpt-4o",
+      "returned_model": "gpt-4o-2024-11-20",
+      "prompt_sha256": "4516fd52f982d054942a7238cdb5380264f28ed8936fe540558d49c914db32f9",
+      "retrieval_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "label": "DeepSeek-V3",
+      "requested_model": "deepseek-v3",
+      "returned_model": "deepseek-v3",
+      "prompt_sha256": "4516fd52f982d054942a7238cdb5380264f28ed8936fe540558d49c914db32f9",
+      "retrieval_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  ],
+  "runtime_answers_sha256": "e072711ca7ec220e04d3c154a36f047a74e8c31bfea09e24cb52122ec36818f0"
+}

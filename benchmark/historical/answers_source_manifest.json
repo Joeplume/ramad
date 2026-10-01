@@ -1,0 +1,8 @@
+{
+  "source_file": "文件材料/多模型问题回答对照.doc",
+  "sha256": "2b6f53523cf30ed098da3ccd2a89f383ab244ca45aacd2a209659ebad43a1727",
+  "extraction": "Contiguous UTF-16LE text bounded by original prompt and first NUL; six unique headings verified; CR converted to LF.",
+  "answer_count": 6,
+  "prompt_design": "Joint evaluation of six named candidates. Original prompt requests differentiated scores.",
+  "provenance": "Archived text, not API response logs. Generation settings and timestamps are absent."
+}

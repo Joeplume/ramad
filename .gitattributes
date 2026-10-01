@@ -1,0 +1,5 @@
+# Preserve archived model responses exactly; Markdown-style trailing spaces are source data.
+benchmark/historical/archived_comparison_text.txt whitespace=-trailing-space
+benchmark/historical/scoring_request_original_cn.txt whitespace=-trailing-space
+benchmark/historical/scoring_rubric_original_cn.txt whitespace=-trailing-space
+benchmark/results/system/joint_request/request.txt whitespace=-trailing-space
