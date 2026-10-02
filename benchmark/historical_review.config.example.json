@@ -48,5 +48,5 @@
       }
     }
   ],
-  "source_status": "Historical reviewer families and joint request are preserved. Exact old API versions and decoding metadata are unavailable. Local reviewer uses explicitly declared reconstruction settings. A fresh replay does not overwrite historical ratings."
+  "source_status": "Historical reviewer families and joint request are preserved. Reviewer replays use explicitly declared local settings. A fresh replay does not overwrite historical ratings."
 }

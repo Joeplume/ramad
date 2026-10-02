@@ -23,7 +23,7 @@ CGANet classification and concentration prediction.
 
 Model weights, benchmark records and spectral datasets are in the companion
 `ramad_zenodo_package` directory. Download it from Zenodo
-(DOI: 10.5281/zenodo.23096172) and extract it beside this repository.
+(DOI: 10.5281/zenodo.23096171) and extract it beside this repository.
 
 The RAMAD LoRA adapter, tokenizer, base-model revision and run manifest are in
 `models/ramad/`. The training corpus and split files are in `training/`.

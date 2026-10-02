@@ -12,7 +12,7 @@ To inspect a replay of the original joint-scoring request:
 python benchmark/replay_historical_review.py dry-run
 ```
 
-After configuring reviewer endpoints and credentials, `score` performs twelve calls (four reviewer families, three rounds). Full requests, parameters, returned model IDs, responses, and parsed scores are retained. Duplicate, missing, out-of-scale, empty, or truncated ratings stop export. New reviews are stored in `outputs/historical_review_replay/`; they do not replace historical ratings. Current service versions and explicit local reviewer reconstruction settings may differ from those of the historical run.
+After configuring reviewer endpoints and credentials, `score` performs twelve calls (four reviewer families, three rounds). Full requests, parameters, returned model IDs, responses, and parsed scores are retained. Duplicate, missing, out-of-scale, empty, or truncated ratings stop export. New reviews are stored in `outputs/historical_review_replay/`; they do not replace historical ratings. Current service versions and explicit local reviewer replay settings may differ from those of the historical run.
 
 `scoring_rubric_original_cn.txt` preserves the six original criteria. `source_summary_tables.csv` preserves the document's LLM summary, human aggregate, and combined summary as separate tables. Individual expert ratings are not included in the source table. Source total columns are retained verbatim; independently calculated dimension sums are supplied alongside them.
 
