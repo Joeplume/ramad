@@ -3,8 +3,8 @@
   "experiment_type": "system_comparison",
   "questions_file": "historical/question_original.jsonl",
   "contexts_file": "main_retrieval_contexts.jsonl",
-  "answers_file": "outputs/main_chat_reconstruction/model_answers.jsonl",
-  "scores_file": "outputs/main_chat_reconstruction/model_scores.jsonl",
+  "answers_file": "outputs/main/model_answers.jsonl",
+  "scores_file": "outputs/main/model_scores.jsonl",
   "scoring_mode": "historical_joint",
   "base_model_revision": "1cfa9a7208912126459214e8b04321603b3df60c",
   "api_profiles": {
@@ -22,7 +22,7 @@
   "review_rounds": 3,
   "candidate_models": [
     {
-      "label": "RAMAD-reconstructed",
+      "label": "RAMAD-adapter-candidate",
       "backend": "local",
       "model": "Qwen/Qwen3-4B",
       "adapter_path": "../../ramad_zenodo_package/models/ramad",
@@ -31,7 +31,7 @@
       "prompt_format": "chat",
       "tokenizer_use_fast": false,
       "use_4bit": true,
-      "enabled": true,
+      "enabled": false,
       "request_overrides": {
         "max_tokens": 2048,
         "temperature": 0.85,
@@ -104,12 +104,12 @@
   "source_status": {
     "question": "Recovered original overall-design question; five variants are separate.",
     "ramad_decoding": "2048 tokens, temperature 0.85, sampling and repetition penalty 1.1 from archived rag_qa.py.",
-    "baseline_decoding": "Original API decoding metadata absent. API settings omitted; local Qwen settings are provisional reconstruction settings.",
+    "baseline_decoding": "Original API decoding metadata absent. API settings are omitted; local Qwen settings are recorded for the candidate adapter workflow.",
     "retrieval": "Five source passages from both historical RAG answers matched exactly to the preserved index after the original UI newline removal. Historical prompt activation remains to be verified.",
-    "model": "Included adapter is a reconstruction, not the historical model.",
+    "model": "The candidate adapter is pending author validation, is disabled by default, and is not used as the historical Figure 2c model.",
     "scoring": "Original joint-scoring request recovered. The per-answer scoring command is disabled for this configuration.",
-    "serialization": "Chat serialization matches the reconstructed adapter training code. The archived raw source-format configuration is retained separately.",
-    "precision": "Reconstruction uses 4-bit inference; archived rag_qa.py specifies float16.",
-    "seed": "42 fixed for reconstruction; historical seed was not retained."
+    "serialization": "Chat serialization matches the candidate adapter training code. The archived raw source-format configuration is retained separately.",
+    "precision": "The candidate workflow uses 4-bit inference; archived rag_qa.py specifies float16.",
+    "seed": "The candidate workflow fixes seed 42."
   }
 }

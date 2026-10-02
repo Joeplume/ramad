@@ -4,7 +4,7 @@
   "data_path": "../../../ramad_zenodo_package/training/RAMAD_domain_QA_1000.jsonl",
   "train_ids_path": "../../../ramad_zenodo_package/training/train_ids.txt",
   "validation_ids_path": "../../../ramad_zenodo_package/training/validation_ids.txt",
-  "output_dir": "outputs/ramad_reconstruction_qlora_20260930",
+  "output_dir": "outputs/ramad_candidate_qlora",
   "required_fields": [
     "id",
     "instruction",

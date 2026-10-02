@@ -10,7 +10,8 @@ CGANet classification and concentration prediction.
 | --- | --- |
 | `benchmark/` | Questions, retrieved passages, prompts, model settings, generation and scoring code |
 | `benchmark/frontier/` | Frontier-model comparison code (data records are in the companion package) |
-| `benchmark/framework_ablation/` | Claude/Kimi bare-versus-RAMAD-prompt-RAG ablation, raw records and paired statistics |
+| Companion `benchmark/framework_transfer/` | Kimi K3/GPT-5.5 bare-versus-RAMAD-framework records and joint scoring outputs |
+| Companion `benchmark/equal_harness/` | RAMAD/Kimi K3/GPT-5.5 common-framework comparison |
 | `benchmark/historical/` | Original experimental answers and scoring records |
 | `benchmark/results/system/` | Six-model reproduction: six answers, 12 reviewer calls, 72 ratings and summaries |
 | `src/ramad_model/` | LoRA training and inference |
@@ -22,9 +23,10 @@ CGANet classification and concentration prediction.
 | `interactive_scoring.py` | Manual entry and summarization of human expert scores |
 
 Weights and spectral datasets are in the companion `ramad_zenodo_package`
-directory. Download it from Zenodo (DOI: 10.5281/zenodo.17809450), extract it
-beside this repository and keep the folder name `ramad_zenodo_package` to use
-the supplied adapter paths.
+directory. Download it from Zenodo (DOI: 10.5281/zenodo.23096172) and extract it
+beside this repository. The adapter package is retained as a candidate artifact
+pending author validation and is not presented as the historical Figure 2c
+adapter.
 For another installation layout, edit `adapter_path` in the benchmark configuration.
 
 ## Installation
@@ -57,11 +59,10 @@ python benchmark/reproduce_historical_scores.py
 python benchmark/summarize_joint_review.py --ratings benchmark/results/system/reviewer_rounds.csv --out-dir results/system_scores
 ```
 
-The original recorded-total mean is 26.25/30 for RAMAD. The September 2026
-reproduction gives 25.3333/30 by the same recorded-total mean and 27.2381/30
-by the original iterative weighting. Its complete six-model table is in the
-results directory. `iterative_scores.csv`, `iterative_weights.csv` and
-`mean_recorded_totals.csv` are separate calculations from the supplied ratings.
+The archived Figure 2c records give a recorded-total mean of 26.25/30 for
+RAMAD. `iterative_scores.csv`, `iterative_weights.csv` and
+`mean_recorded_totals.csv` are separate recalculations from the released
+ratings and are not pooled with the framework-transfer experiment.
 
 ## Generate and score a new system comparison
 
@@ -69,30 +70,29 @@ results directory. `iterative_scores.csv`, `iterative_weights.csv` and
 its adapter, domain prompt and five retrieved passages; RAMAD-RAG uses the same
 prompt and passages with the base model; general-model baselines receive the
 original question. Local chat serialization matches the released adapter's
-training format. Parameter values, base revision and reconstruction settings
-are recorded in the configuration and model documentation.
+training format. Parameter values and the base-model revision are recorded in
+the configuration and model documentation.
 
 ```powershell
 python benchmark/run_benchmark.py dry-run
 python benchmark/run_benchmark.py generate
-python benchmark/build_joint_review.py --answers benchmark/outputs/main_chat_reconstruction/model_answers.jsonl --out-dir benchmark/outputs/joint_request
+python benchmark/build_joint_review.py --answers benchmark/outputs/main/model_answers.jsonl --out-dir benchmark/outputs/joint_request
 python benchmark/replay_historical_review.py score --config review_config.reported.json --request-file outputs/joint_request/request.txt --request-manifest outputs/joint_request/request_manifest.json --out-dir outputs/joint_review
 python benchmark/summarize_joint_review.py --ratings benchmark/outputs/joint_review/reviewer_rounds.csv --out-dir results/new_system_scores
 ```
 
 This joint review follows the original named six-candidate procedure, with four
 reviewer families and three calls per reviewer. Full responses and parsed scores
-are saved. `benchmark/frontier/` contains the executable code for the seven-model
-frontier run reported in the Supporting Information. `run_config.json` preserves
-the recorded run's settings; `run_config.uniform.example.json` provides uniform
-generation settings for new runs, and the generation entry retries with a larger
-output cap if a provider truncates an answer. The equal-harness control
-supplies identical prompts and retrieved passages to seven candidates on five
-questions. Its complete records and paired statistics are in
-`../ramad_zenodo_package/benchmark/equal_harness/README.md`.
-The dedicated framework ablation compares Claude Fable 5 and Kimi K3 before
-and after applying the same frozen retrieval passages and RAMAD prompt. Its
-reproducible results are documented in `benchmark/framework_ablation/README.md`.
+are saved. The framework-transfer experiment applies the same five frozen RAG
+passages, structured prompt and task constraints to Kimi K3 and GPT-5.5, with
+bare-model responses retained as within-model controls. In the common
+ten-candidate matrix, Kimi K3 increased from 20.44 to 25.67/30 and GPT-5.5
+increased from 20.89 to 26.33/30. In the separate three-candidate equal-harness
+matrix, RAMAD, Kimi K3 and GPT-5.5 scored 22.89, 26.33 and 23.33/30,
+respectively. Complete records are archived in the companion
+`benchmark/framework_transfer/` and `benchmark/equal_harness/` directories.
+Claude is not assigned a score. `benchmark/BENCHMARK_PROTOCOL.md` defines the
+two comparison panels and scoring procedure.
 
 ## Evaluate CGANet
 
@@ -106,16 +106,20 @@ R² 0.9986685. See its README for the dataset and architecture details.
 python src/spectral/run_checkpoint.py --package-dir ../ramad_zenodo_package/spectral/cganet --out-dir results/cganet
 ```
 
-For training with the original augmented CSV, use:
+For a new leakage-controlled training run, supply an explicit split table with
+`source_row` and `split` (`train`, `val`, or `test`) columns. The split is applied
+before preprocessing, and `RobustScaler` is fitted on training rows only:
 
 ```powershell
-python src/spectral/train_cganet.py --training-csv PATH/augmented_multi_substances_filtered_water_m_cleaned.csv --out-dir results/cganet_training
+python src/spectral/train_cganet.py --training-csv PATH/augmented_multi_substances_filtered_water_m_cleaned.csv --split-csv PATH/batch_level_split.csv --out-dir results/cganet_training
 ```
 
-The evaluation package provides the checkpoint, split assignments and
-preprocessing parameters; the source training table is identified in
-`spectral/cganet/model_config.json`.
-Training settings follow `spectral/cganet/training_config.json`.
+The released August 2025 checkpoint and its archived row-level split are
+retained only for recalculating the associated internal-test outputs. They are
+not used as evidence for the batch-separated validation described in the
+revised manuscript. New training runs must use the explicit batch-level split
+workflow above. The source training table and checkpoint metadata are recorded
+in `spectral/cganet/model_config.json`.
 
 ## Checks and troubleshooting
 
@@ -131,6 +135,7 @@ It does not train models or make API calls.
 ## LoRA training configuration
 
 The training and single-prompt inference entry points default to
-`training_config_reconstruction_qlora.json`, which matches the released adapter's
-recorded training settings. `training_config.json` preserves the earlier training
-configuration. The model card and `run_manifest.json` identify the completed run.
+`training_config_candidate_qlora.json`. This candidate configuration remains
+separate from the archived Figure 2c score record until author validation is
+complete. `training_config.json` preserves the alternative full-precision
+configuration.

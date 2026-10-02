@@ -1,4 +1,4 @@
-"""Train CGANet with the archived source settings and an original training CSV."""
+"""Train CGANet from an explicit, preassigned data split."""
 import argparse
 import json
 from pathlib import Path
@@ -6,7 +6,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, RobustScaler
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
@@ -17,6 +16,8 @@ from cganet_model import RamanMICTransformerFusionModel
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--training-csv', type=Path, required=True)
+    parser.add_argument('--split-csv', type=Path, required=True,
+                        help='CSV with source_row and split columns; split values must be train, val, or test.')
     parser.add_argument('--out-dir', type=Path, required=True)
     args = parser.parse_args()
     if args.out_dir.exists():
@@ -26,17 +27,35 @@ def main():
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(42)
     frame = pd.read_csv(args.training_csv)
+    split_frame = pd.read_csv(args.split_csv)
+    required_split_columns = {'source_row', 'split'}
+    if not required_split_columns.issubset(split_frame.columns):
+        raise ValueError('split CSV must contain source_row and split columns')
+    if split_frame['source_row'].duplicated().any():
+        raise ValueError('split CSV contains duplicate source_row values')
+    expected_rows = set(range(len(frame)))
+    supplied_rows = set(split_frame['source_row'].astype(int))
+    if supplied_rows != expected_rows:
+        raise ValueError('split CSV must assign every training-table row exactly once')
+    split_frame = split_frame.set_index('source_row').loc[np.arange(len(frame))]
+    split_values = split_frame['split'].astype(str).str.lower().replace({'validation': 'val'})
+    if not set(split_values).issubset({'train', 'val', 'test'}):
+        raise ValueError('split values must be train, val, or test')
+    train = np.flatnonzero(split_values.to_numpy() == 'train')
+    val = np.flatnonzero(split_values.to_numpy() == 'val')
+    test = np.flatnonzero(split_values.to_numpy() == 'test')
+    if min(len(train), len(val), len(test)) == 0:
+        raise ValueError('train, val, and test must each contain at least one row')
     features = [c for c in frame.columns if c not in ['Category', 'Conc']]
     if len(features) >= 2000:
         features = features[:1800]
     scaler = RobustScaler()
-    x = scaler.fit_transform(frame[features].to_numpy()).astype(np.float32)
+    raw_x = frame[features].to_numpy()
+    scaler.fit(raw_x[train])
+    x = scaler.transform(raw_x).astype(np.float32)
     encoder = LabelEncoder()
     categories = encoder.fit_transform(frame['Category'])
     concentrations = frame['Conc'].to_numpy(dtype=np.float32)
-    train_val, test = train_test_split(np.arange(len(frame)), test_size=0.2, random_state=42)
-    train, val = train_test_split(train_val, test_size=0.25, random_state=42)
-
     def loader(rows, shuffle):
         return DataLoader(TensorDataset(torch.from_numpy(x[rows]),
                           torch.tensor(categories[rows], dtype=torch.long),
@@ -58,14 +77,14 @@ def main():
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10)
     category_loss, concentration_loss = nn.CrossEntropyLoss(), nn.MSELoss()
     args.out_dir.mkdir(parents=True)
-    membership = np.full(len(frame), 'test', dtype='<U5')
-    membership[train], membership[val] = 'train', 'val'
+    membership = split_values.to_numpy(dtype='<U5')
     pd.DataFrame({'source_row': np.arange(len(frame)), 'split': membership}).to_csv(args.out_dir / 'split.csv', index=False)
     np.savez_compressed(args.out_dir / 'preprocessing.npz', center=scaler.center_, scale=scaler.scale_,
                         feature_names=np.asarray(features), category_names=encoder.classes_.astype(str))
     (args.out_dir / 'run.json').write_text(json.dumps({'seed': 42, 'epochs': 300,
         'training_csv': str(args.training_csv), 'rows': len(frame), 'features': len(features),
         'train_rows': len(train), 'validation_rows': len(val), 'test_rows': len(test),
+        'split_csv': str(args.split_csv), 'scaler_fit': 'training_rows_only',
         'device': str(device), 'torch': torch.__version__}, indent=2) + '\n', encoding='utf-8')
     best_loss = float('inf')
     history = []

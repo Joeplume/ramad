@@ -1,27 +1,70 @@
-# Supplementary shared-RAG benchmark protocol
+# RAMAD framework-transfer benchmark protocol
 
-This protocol applies only to the supplementary shared-context experiment. The main system comparison is configured in `benchmark_config.main.json`. The recovered historical question, six answers, original joint evaluation request, and ratings are documented in `historical/README.md`.
+This protocol separates two questions. The archived Figure 2c comparison tests
+the complete RAMAD system against general-purpose models used directly. The
+framework-transfer experiment tests what happens when the same RAMAD retrieval
+context, structured prompt and task constraints are supplied to external
+foundation models. The two score matrices are reported separately.
 
 ## Source materials
 
-The five Chinese questions in `questions.jsonl` are taken from the archived `细分问题打分.docx`. Every candidate receives the active Chinese RAG prompt recovered from the original `rag_qa.py`, with the same five passage texts inserted in the same order. No additional domain system prompt or passage-number instruction is supplied to any candidate.
+The framework-transfer experiment uses the original overall SERS
+experimental-design question. For each framework-enabled condition, the same
+five frozen passage texts are inserted in the same order using the same RAMAD
+structured prompt. Bare controls receive the same original question without
+the passages or RAMAD prompt structure.
 
-The passages were frozen from the preserved FAISS index before generation. `retrieval_queries_en.jsonl` records the English retrieval queries corresponding to the five Chinese questions; the preserved index was built with `all-MiniLM-L6-v2`, so these queries are used consistently for every candidate. `retrieval_config.json` records the encoder, top-k value, and index hashes. `retrieval_contexts.jsonl` stores the exact passages and source-file identifiers; only passage text enters the candidate prompt, matching the original RAG template.
+The companion archive stores the exact passages, prompt text, model requests,
+returned model identifiers and complete responses. Passage and prompt hashes
+are retained with each answer so that the common inputs can be checked without
+re-running retrieval.
 
 ## Generation
 
-The candidate panel contains the newly reconstructed RAMAD LoRA adapter, its untuned Qwen3-4B base, Claude Fable 5, Kimi K3, ChatGPT o3, DeepSeek V3, and ChatGPT 4o. All seven receive the same questions, prompt template, retrieved passages, temperature 0, and maximum output-token setting of 16,384. Calls that return empty or truncated visible answers are excluded and repeated under a new complete-run label. The provider, actual returned model ID, request parameters, messages, response, and usage are saved for every call.
+The primary within-model controls are Kimi K3 and GPT-5.5, each evaluated in a
+bare condition and a RAMAD-framework condition. The archived RAMAD and baseline
+answers are included as named anchors in the joint blinded scoring request.
+Calls returning an empty or truncated visible answer are treated as failures
+and are not scored. The provider, returned model ID, request parameters,
+messages, response and usage are saved for completed calls.
 
-The reconstructed adapter is a separately labeled model trained from the supplied reconstructed 1,000-record corpus. It is not the historical adapter behind the manuscript's original Figure 2c. Historical scores and this new run are not pooled.
+No Claude score is reported because the available endpoint did not return a
+complete, reproducible response. GPT-5.5 is used as the additional executable
+frontier-model control. Historical Figure 2c totals and the new joint scoring
+matrix are not pooled.
 
 ## Scoring and analysis
 
-The four reviewer model families named in the manuscript—ChatGPT o3, DeepSeek V3, Qwen3-4B, and ChatGPT 4o—score blinded answers on the original six dimensions: SR, CSC, DQ, CS, QR, and IS, each on a 1–5 scale. `prompts/scoring_rubric_cn.txt` states the operational rubric. Each reviewer-answer pair is scored in three recorded calls. The three scores are averaged separately for each dimension before the manuscript's iterative per-dimension reviewer weighting is applied. Raw calls, the mean score matrix, reviewer weights, and arithmetic-mean sensitivity scores are retained.
+Available reviewer families score the blinded joint answer matrix on the
+original six dimensions: SR, CSC, DQ, CS, QR and IS, each on a 1–5 scale. Three
+rounds are recorded for every reviewer family. The released score table is
+calculated from the six dimension scores; reviewer-provided total columns are
+retained only for auditing and are not substituted for the dimension sum.
 
-The Qwen3-4B reviewer uses its non-thinking chat-template mode for concise six-dimension JSON output in all three rounds. Candidate-model Qwen3-4B and RAMAD answers retain their default inference mode. A preflight reviewer run with thinking enabled was excluded in full after one answer exhausted the 8,192-token scoring cap without producing a final rating.
+The Qwen3-4B reviewer was unavailable through the configured endpoint for this
+run. The completed control therefore contains three reviewer families
+and is reported as such rather than being merged with the archived four-reviewer
+Figure 2c table.
 
-Human expert scores, if collected, are recorded separately and combined with the LLM average according to Text S7. They are never inferred from LLM scores or copied from the historical model table. The paired statistical unit is one question (n = 5); report per-question scores, mean paired differences, question bootstrap intervals, and exact two-sided sign-flip tests without treating the five questions as a large sample.
+Human expert scores, if collected, are recorded separately and are never
+inferred from model-review scores or copied from the historical table. Repeated
+reviewer calls are technical replicates, not independent experimental tasks;
+claims from this control are therefore limited to the evaluated question and
+model versions.
 
 ## Reproduction record
 
-The release contains the Chinese questions, English retrieval queries, frozen passages, exact generation and scoring prompts, model settings, all answer and scoring logs, the aggregation code, and the reconstructed adapter identifier. The full-text PDF archive is not required to recompute the published scores because the exact supplied passages are frozen and released.
+The companion `benchmark/framework_transfer/` directory contains the
+bare-versus-framework panel and `benchmark/equal_harness/` contains the
+RAMAD/Kimi K3/GPT-5.5 common-framework panel. Both directories include the
+question, frozen passages, exact prompts, complete answers, raw review calls,
+parsed dimension scores and aggregation outputs. The archived Figure 2c
+materials remain under `benchmark/historical/`.
+
+## Reported panels
+
+In the ten-candidate framework-transfer matrix, Kimi K3 increased from 20.44
+to 25.67/30 and GPT-5.5 increased from 20.89 to 26.33/30. In the separate
+three-candidate equal-harness matrix, RAMAD, Kimi K3 and GPT-5.5 scored 22.89,
+26.33 and 23.33/30, respectively. Each value is calculated from the six
+dimension scores across three rounds from each of three reviewer families.
