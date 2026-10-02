@@ -8,7 +8,7 @@ from run_benchmark import digest, load_jsonl
 
 SOURCE_ORDER = ['Qwen3-4b', 'ChatGPT-4o', 'Deepseek-V3', 'RAMAD', 'ChatGPT-o3', 'RAMAD-RAG']
 TABLE_ORDER = ['RAMAD', 'Deepseek-V3', 'RAMAD-RAG', 'ChatGPT-4o', 'Qwen3-4b', 'ChatGPT-o3']
-ALIASES = {'Qwen3-4B': 'Qwen3-4b', 'DeepSeek-V3': 'Deepseek-V3', 'RAMAD-reconstructed': 'RAMAD'}
+ALIASES = {'Qwen3-4B': 'Qwen3-4b', 'DeepSeek-V3': 'Deepseek-V3'}
 
 
 def build(rows, rubric):

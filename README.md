@@ -13,7 +13,6 @@ CGANet classification and concentration prediction.
 | Companion `benchmark/framework_transfer/` | Kimi K3/GPT-5.5 bare-versus-RAMAD-framework records and joint scoring outputs |
 | Companion `benchmark/equal_harness/` | RAMAD/Kimi K3/GPT-5.5 common-framework comparison |
 | `benchmark/historical/` | Original experimental answers and scoring records |
-| `benchmark/results/system/` | Six-model reproduction: six answers, 12 reviewer calls, 72 ratings and summaries |
 | `src/ramad_model/` | LoRA training and inference |
 | `src/ramad_rag/` | Document indexing, retrieval and question answering |
 | `src/spectral/` | CGANet architecture and checkpoint evaluation |
@@ -22,11 +21,12 @@ CGANet classification and concentration prediction.
 | `prompts/` | Generation and scoring templates |
 | `interactive_scoring.py` | Manual entry and summarization of human expert scores |
 
-Weights and spectral datasets are in the companion `ramad_zenodo_package`
-directory. Download it from Zenodo (DOI: 10.5281/zenodo.23096172) and extract it
-beside this repository. The adapter package is retained as a candidate artifact
-pending author validation and is not presented as the historical Figure 2c
-adapter.
+Model weights, benchmark records and spectral datasets are in the companion
+`ramad_zenodo_package` directory. Download it from Zenodo
+(DOI: 10.5281/zenodo.23096172) and extract it beside this repository.
+
+The RAMAD LoRA adapter, tokenizer, base-model revision and run manifest are in
+`models/ramad/`. The training corpus and split files are in `training/`.
 For another installation layout, edit `adapter_path` in the benchmark configuration.
 
 ## Installation
@@ -56,13 +56,10 @@ Run from this repository directory:
 
 ```powershell
 python benchmark/reproduce_historical_scores.py
-python benchmark/summarize_joint_review.py --ratings benchmark/results/system/reviewer_rounds.csv --out-dir results/system_scores
 ```
 
 The archived Figure 2c records give a recorded-total mean of 26.25/30 for
-RAMAD. `iterative_scores.csv`, `iterative_weights.csv` and
-`mean_recorded_totals.csv` are separate recalculations from the released
-ratings and are not pooled with the framework-transfer experiment.
+RAMAD and remain separate from the framework-transfer experiment.
 
 ## Generate and score a new system comparison
 
@@ -135,7 +132,5 @@ It does not train models or make API calls.
 ## LoRA training configuration
 
 The training and single-prompt inference entry points default to
-`training_config_candidate_qlora.json`. This candidate configuration remains
-separate from the archived Figure 2c score record until author validation is
-complete. `training_config.json` preserves the alternative full-precision
-configuration.
+`training_config_qlora.json`. The model card and `run_manifest.json` in the
+companion archive record the released adapter and its base-model revision.

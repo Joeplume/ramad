@@ -37,7 +37,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--revision", help="Pinned base-model revision.")
     parser.add_argument("--use-4bit", action="store_true")
     parser.add_argument("--prompt-format", choices=["chat", "raw"], default="chat",
-                        help="Chat matches the candidate adapter format; raw uses the archived source format.")
+                        help="Chat uses the saved adapter format; raw uses the archived source format.")
     parser.add_argument("--repetition-penalty", type=float, default=1.1)
     sampling = parser.add_mutually_exclusive_group()
     sampling.add_argument("--sample", dest="do_sample", action="store_true")

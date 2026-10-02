@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 
-DEFAULT_CONFIG = Path(__file__).with_name("training_config_candidate_qlora.json")
+DEFAULT_CONFIG = Path(__file__).with_name("training_config_qlora.json")
 
 
 def parse_args() -> argparse.Namespace:
