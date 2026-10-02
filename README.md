@@ -112,8 +112,9 @@ For training with the original augmented CSV, use:
 python src/spectral/train_cganet.py --training-csv PATH/augmented_multi_substances_filtered_water_m_cleaned.csv --out-dir results/cganet_training
 ```
 
-The full training CSV is not included in the compact checkpoint evaluation
-package. Its identity is recorded in `spectral/cganet/model_config.json`.
+The evaluation package provides the checkpoint, split assignments and
+preprocessing parameters; the source training table is identified in
+`spectral/cganet/model_config.json`.
 Training settings follow `spectral/cganet/training_config.json`.
 
 ## Checks and troubleshooting
