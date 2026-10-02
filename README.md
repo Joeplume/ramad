@@ -9,17 +9,22 @@ CGANet classification and concentration prediction.
 | Directory | Contents |
 | --- | --- |
 | `benchmark/` | Questions, retrieved passages, prompts, model settings, generation and scoring code |
+| `benchmark/frontier/` | Frontier-model comparison code (data records are in the companion package) |
+| `benchmark/framework_ablation/` | Claude/Kimi bare-versus-RAMAD-prompt-RAG ablation, raw records and paired statistics |
 | `benchmark/historical/` | Original experimental answers and scoring records |
 | `benchmark/results/system/` | Six-model reproduction: six answers, 12 reviewer calls, 72 ratings and summaries |
 | `src/ramad_model/` | LoRA training and inference |
 | `src/ramad_rag/` | Document indexing, retrieval and question answering |
-| `src/spectral/` | CGANet preprocessing, training and checkpoint inference |
-| `../Zenodo模型与数据/training/` | Training corpus, splits and provenance |
+| `src/spectral/` | CGANet architecture and checkpoint evaluation |
+| `../ramad_zenodo_package/training/` | Training corpus, splits and provenance |
 | `training_examples/` | Additional training examples |
 | `prompts/` | Generation and scoring templates |
+| `interactive_scoring.py` | Manual entry and summarization of human expert scores |
 
-Weights and spectral datasets are in the companion `Zenodo模型与数据` directory.
-Keep that directory beside this repository to use the supplied adapter paths.
+Weights and spectral datasets are in the companion `ramad_zenodo_package`
+directory. Download it from Zenodo (DOI: 10.5281/zenodo.17809450), extract it
+beside this repository and keep the folder name `ramad_zenodo_package` to use
+the supplied adapter paths.
 For another installation layout, edit `adapter_path` in the benchmark configuration.
 
 ## Installation
@@ -78,31 +83,43 @@ python benchmark/summarize_joint_review.py --ratings benchmark/outputs/joint_rev
 This joint review follows the original named six-candidate procedure, with four
 reviewer families and three calls per reviewer. Full responses and parsed scores
 are saved. `benchmark/frontier/` contains the executable code for the seven-model
-frontier run reported in the Supporting Information. The equal-harness control
+frontier run reported in the Supporting Information. `run_config.json` preserves
+the recorded run's settings; `run_config.uniform.example.json` provides uniform
+generation settings for new runs, and the generation entry retries with a larger
+output cap if a provider truncates an answer. The equal-harness control
 supplies identical prompts and retrieved passages to seven candidates on five
 questions. Its complete records and paired statistics are in
-`../Zenodo模型与数据/benchmark/equal_harness/README.md`.
+`../ramad_zenodo_package/benchmark/equal_harness/README.md`.
+The dedicated framework ablation compares Claude Fable 5 and Kimi K3 before
+and after applying the same frozen retrieval passages and RAMAD prompt. Its
+reproducible results are documented in `benchmark/framework_ablation/README.md`.
 
-## CGANet
+## Evaluate CGANet
 
-The companion dataset contains the 1,600-channel mixed-drug model and the
-1,800-channel four-class model, each with its checkpoint, preprocessing and split.
-Run the mixed-drug checkpoint using:
+The companion `spectral/cganet/` directory contains the August 2025 checkpoint,
+preprocessing parameters, split assignments and 11,614 internal test spectra.
+The released code reproduces the Figure 5b confusion matrix, including six STZ
+samples classified as Water. The same evaluation gives RMSE 0.0479882 and
+R² 0.9986685. See its README for the dataset and architecture details.
 
 ```powershell
-python src/spectral/run_checkpoint.py --package-dir ../Zenodo模型与数据/spectral/cganet_1600 --out-dir results/spectral/cganet_1600
+python src/spectral/run_checkpoint.py --package-dir ../ramad_zenodo_package/spectral/cganet --out-dir results/cganet
 ```
 
-Training and preprocessing commands are included in the companion README.
-For the four-class model, see `spectral/cganet_1800/README.md` there.
-NLMixup-generated spectra are training augmentation data; external prediction
-files identify the measured test inputs and their labels.
+For training with the original augmented CSV, use:
+
+```powershell
+python src/spectral/train_cganet.py --training-csv PATH/augmented_multi_substances_filtered_water_m_cleaned.csv --out-dir results/cganet_training
+```
+
+The full training CSV is not included in the compact checkpoint evaluation
+package. Its identity is recorded in `spectral/cganet/model_config.json`.
+Training settings follow `spectral/cganet/training_config.json`.
 
 ## Checks and troubleshooting
 
 `pwsh -File run_public_package.ps1` checks dataset formats and CLI entry points.
-It does not train models or make API calls. The two-spectrum CSV is a format
-sample; full checkpoint evaluation uses the companion spectral datasets.
+It does not train models or make API calls.
 
 - Missing adapter: check the companion directory and configured `adapter_path`.
 - CUDA error: use a CUDA-enabled PyTorch build compatible with your GPU.

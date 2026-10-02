@@ -131,8 +131,11 @@ def list_models(config_path: Path):
     print(json.dumps(data, ensure_ascii=False, indent=2))
 
 
-def chat_completion(config: dict, model_cfg: dict, messages: list, mode: str):
+def chat_completion(config: dict, model_cfg: dict, messages: list, mode: str,
+                    max_tokens_override: int | None = None):
     params = dict(config.get(mode, {}))
+    if max_tokens_override is not None:
+        params["max_tokens"] = max_tokens_override
     payload = {
         "model": model_cfg["model"],
         "messages": messages,
@@ -140,8 +143,38 @@ def chat_completion(config: dict, model_cfg: dict, messages: list, mode: str):
     }
     if model_cfg.get("extra_body"):
         payload.update(model_cfg["extra_body"])
+    if max_tokens_override is not None:
+        payload["max_tokens"] = max_tokens_override
     result = api_request(config, "POST", "/v1/chat/completions", payload)
     return result
+
+
+def finish_reason_of(result: dict) -> str:
+    choices = result.get("choices") or []
+    if not choices:
+        return ""
+    return choices[0].get("finish_reason") or ""
+
+
+def effective_max_tokens(config: dict, model_cfg: dict, mode: str) -> int:
+    cap = (model_cfg.get("extra_body") or {}).get("max_tokens")
+    if cap is None:
+        cap = (config.get(mode) or {}).get("max_tokens", 2048)
+    return int(cap)
+
+
+def generate_complete(config: dict, model_cfg: dict, messages: list):
+    """Generate one answer. If the provider truncates the answer at the output
+    cap (finish_reason == "length"), retry with a doubled cap, up to 3 retries."""
+    result = chat_completion(config, model_cfg, messages, "generation")
+    retries = 0
+    while finish_reason_of(result) == "length" and retries < 3:
+        retries += 1
+        new_cap = effective_max_tokens(config, model_cfg, "generation") * (2 ** retries)
+        print(f"answer hit the output cap; retrying with max_tokens={new_cap}", file=sys.stderr)
+        result = chat_completion(config, model_cfg, messages, "generation",
+                                 max_tokens_override=new_cap)
+    return result, retries
 
 
 def extract_text(result: dict):
@@ -180,7 +213,7 @@ def generate_outputs(config_path: Path, questions_path: Path, out_path: Path, sl
             ]
             print(f"generating {model_cfg['label']} / {q['id']}")
             started = time.time()
-            result = chat_completion(config, model_cfg, messages, "generation")
+            result, cap_retries = generate_complete(config, model_cfg, messages)
             row = {
                 "run_utc": datetime.now(timezone.utc).isoformat(),
                 "candidate_label": model_cfg["label"],
@@ -189,6 +222,8 @@ def generate_outputs(config_path: Path, questions_path: Path, out_path: Path, sl
                 "topic": q.get("topic", ""),
                 "question": q["question"],
                 "answer": extract_text(result),
+                "finish_reason": finish_reason_of(result),
+                "cap_retries": cap_retries,
                 "latency_s": round(time.time() - started, 3),
                 "raw_response": result,
             }
@@ -236,7 +271,6 @@ def score_outputs(config_path: Path, outputs_path: Path, scores_path: Path, slee
                 continue
             user_prompt = (
                 "Question:\n" + row["question"] + "\n\n"
-                "Candidate model label:\n" + row["candidate_label"] + "\n\n"
                 "Candidate answer:\n" + row["answer"]
             )
             messages = [

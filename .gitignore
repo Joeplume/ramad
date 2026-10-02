@@ -8,3 +8,6 @@ benchmark/outputs/
 benchmark/benchmark_config.runtime.json
 src/ramad_model/outputs/
 *.env
+
+# in-progress joint ablation run, add after completion
+benchmark/framework_ablation_joint/

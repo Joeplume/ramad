@@ -7,7 +7,7 @@ ChatGPT-4o. It does not contain a RAMAD response.
 
 The five questions and model configuration used for the recorded run are in
 this directory. Raw answers, evaluator responses and score tables are deposited
-under `Zenodo模型与数据/benchmark/frontier/`.
+under `ramad_zenodo_package/benchmark/frontier/`.
 
 Run a new comparison from this directory after setting `QINGYUN_API_KEY`:
 

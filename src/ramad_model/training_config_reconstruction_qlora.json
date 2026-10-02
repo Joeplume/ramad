@@ -1,9 +1,9 @@
 {
   "model_name_or_path": "Qwen/Qwen3-4B",
   "model_revision": "1cfa9a7208912126459214e8b04321603b3df60c",
-  "data_path": "../../../Zenodo模型与数据/training/RAMAD_domain_QA_1000.jsonl",
-  "train_ids_path": "../../../Zenodo模型与数据/training/train_ids.txt",
-  "validation_ids_path": "../../../Zenodo模型与数据/training/validation_ids.txt",
+  "data_path": "../../../ramad_zenodo_package/training/RAMAD_domain_QA_1000.jsonl",
+  "train_ids_path": "../../../ramad_zenodo_package/training/train_ids.txt",
+  "validation_ids_path": "../../../ramad_zenodo_package/training/validation_ids.txt",
   "output_dir": "outputs/ramad_reconstruction_qlora_20260930",
   "required_fields": [
     "id",

@@ -25,7 +25,7 @@
       "label": "RAMAD-reconstructed",
       "backend": "local",
       "model": "Qwen/Qwen3-4B",
-      "adapter_path": "../../Zenodo模型与数据/models/ramad",
+      "adapter_path": "../../ramad_zenodo_package/models/ramad",
       "component_role": "ramad",
       "condition": "prompt_rag",
       "prompt_format": "raw",
